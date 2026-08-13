@@ -542,16 +542,49 @@ MVPでは作らないもの:
 - コメント
 - SNS型タイムライン
 - 本格的なコミュニティ機能
-- 大会機能
+- 大会機能（Core MVPではOut of Scope。Weekly TournamentをPost-MVP planned featureとして初期拡張で検討する）
 - チーム機能
 - キャラクター別レーティング
-- キャラクター別マッチング
+- キャラクター別マッチング（Core MVPではOut of Scope。Character Matchup PracticeをPost-MVP planned featureとして初期拡張で検討する）
 - レート戦前の使用キャラクター表示
 - 本格的な不正検知システム
 - 高度な運営分析
 - 複雑なBAN管理
 - 収益化機能
 - ネイティブアプリ
+
+---
+
+# 7.1 Post-MVP Planned Features / Early Expansion
+
+以下はCore MVPには含めない。Core MVPの対戦成立・Rating・Profile・Rankingを完成させ、需要検証後の初期拡張としてFeature Specを別途作成する。
+
+## Weekly Tournament
+
+週1回の定期大会を開催し、通常のRating Matchとは異なる継続利用の目標とイベント体験を提供する。
+
+想定する機能:
+
+- SF6-Ratingアカウントによる参加登録
+- Ratingを使ったSeed決定候補
+- Tournament Bracketの生成と進行
+- 各対戦をFT3で実施
+- 既存のMatch RoomとResult Reportingを可能な限り再利用
+- Profileへ大会成績、最高到達、優勝回数等を記録
+
+大会試合をRated / Unratedのどちらとして扱うか、同一相手との24時間Rated cooldownを大会Bracket上で例外とするか、Check-in、定員、No-show、Dispute等の詳細は将来のTournament Feature Specで決定する。
+
+## Character Matchup Practice / Character Practice
+
+特定キャラクターへの対策・練習を目的として、対策したいキャラクターと練習相手が提供できるキャラクターを明示して対戦相手を探す機能を提供する。
+
+Product boundary:
+
+- 通常Rated Matchでは、引き続き使用予定キャラクター、メインキャラクター、使用率等を対戦成立前に公開しない
+- Character Practiceだけは目的上必要なキャラクター情報を明示する
+- 初期案ではUnrated専用とし、通常のプレイヤーRatingへ影響させない
+- 既存のMatchmaking、Match Room、FT3、Result Reportingを可能な限り再利用する
+- 対策したいキャラクター、提供できるキャラクター、検索方法、戦績表示等の詳細は将来のCharacter Practice Feature Specで決定する
 
 ---
 
