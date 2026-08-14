@@ -171,7 +171,11 @@ SF6プレイヤーネームとSF6ユーザーコードはMatch成立後に初め
 
 Hostには次の趣旨を表示する。
 
-> SF6でCustom Roomを作成し、作成後に「Room created」を送信してください。
+> SF6でCustom Roomを作成し、Round Timeを60 secondsに設定してください。作成後に「Room created」を送信してください。
+
+- Host向け案内では `Round Time: 60 seconds` を独立して明示し、SF6標準の99秒のまま作成する設定ミスを減らす。
+- その他のゲーム内設定は原則としてSF6標準設定に従う。
+- 60秒設定はHostと参加者が従う運用ルールであり、SF6-Ratingは設定値を自動検証しない。
 
 Guestには次の趣旨を表示する。
 
@@ -232,6 +236,7 @@ Timelineは通信切断後にも復元できるよう永続化する。
 **Confirmed**
 
 - SF6-RatingはSF6側のCustom Room作成、参加、対戦開始、対戦中状態を自動検証しない。
+- SF6-RatingはRound Timeが60秒に設定されているかを自動検証しない。Hostと参加者が案内に従って確認する。
 - `Room created` と `Joined` はユーザーが送った進行補助メッセージであり、SF6内の事実を証明するものではない。
 - SF6-Rating側に `Start FT3` ボタンを設けない。
 - 外部ゲーム内の進行を別のMatch statusとして設けない。
@@ -769,6 +774,9 @@ No-show / cancellationの詳細データと判定はDispute / Admin Feature Spec
 - [ ] 外部ゲーム内の進行を表す追加statusが存在しない
 - [ ] Start FT3ボタンが存在しない
 - [ ] SF6側でRoom作成・参加・対戦開始したことを自動検証しない
+- [ ] Host向けCustom Room作成案内に `Round Time: 60 seconds` が明示される
+- [ ] その他のゲーム内設定は原則SF6標準であり、Round Timeのみ標準の99秒ではなく60秒と案内される
+- [ ] 60秒設定を自動検証済みとして扱わず、Hostと参加者が従う運用ルールとして扱う
 - [ ] Room created / Joined未送信でもResult Reportingへ進める
 - [ ] 各参加者が独立してResult Reportingへ進める
 - [ ] 一方の報告開始後に相手へ報告導線を表示できる
