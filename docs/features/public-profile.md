@@ -141,7 +141,7 @@ Unrated MatchはHeadline StatsおよびRated Statsへ含めない。
 - Admin investigation
 - その他Moderationまたは未確定状態の情報
 
-Cancelled、Invalidated、未解決MatchはPublic Match Historyへ表示しない。確定した競技結果とModeration情報を分離する。
+`status=cancelled`、`result_validity=invalidated`、非terminal MatchはPublic Match Historyへ表示しない。確定した競技結果とModeration情報を分離する。
 
 ## FR-08 Explicit Forfeit
 
@@ -599,24 +599,24 @@ Post-MVPのTournament実績やCharacter Practice実績は将来の拡張余地�
 
 現時点でPublic ProfileのMVP実装を停止するBlockerはない。
 
-## OQ-01 Ranking / Seasons Display Contract
+## Resolved — Ranking / Seasons Display Contract
 
-**[Open Question — Non-blocking / Cross-feature]**
+**[Resolved by Ranking / Seasons]**
 
 - Current Seasonと過去Seasonの最終表示項目
 - Ranking Position更新タイミング
 - Season Snapshotの取得契約
 - Season別Match Historyへの絞り込みをMVPに含めるか
 
-Ranking / Seasons Feature SpecをSource of Truthとして確定後に接続する。Public Profile側ではOverview / Match History / Seasonsの構成と、確定済み公開データだけを表示する境界を維持する。
+Ranking / Seasons Feature SpecをSource of Truthとする。Public ProfileはOverview / Match History / Seasonsの構成と、確定済み公開データだけを表示する境界を維持する。Season別Match History絞り込みはMVP必須外とする。
 
-## OQ-02 Initial Match History Page Size
+## OQ-01 Initial Match History Page Size
 
 **[Assumption — Non-blocking / Configuration]**
 
 初回件数は20件程度を候補とし、PerformanceとUXを確認して設定値として調整できるようにする。全履歴を一度に取得しないことは確定要件とする。
 
-## OQ-03 Rating Snapshot Availability
+## OQ-02 Rating Snapshot Availability
 
 **[Assumption — Non-blocking / Cross-feature]**
 

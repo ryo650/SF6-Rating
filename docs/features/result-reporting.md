@@ -208,12 +208,12 @@ Unrated MatchではRating計算、Rating History作成、Current Rating更新を
 - 成立時はRating変動なしで `cancelled` とする
 - 通常結果、Forfeit、Incidentと競合する場合は最新状態を検証し、必要ならDisputeへ送る
 
-## Requirement 10 — Unresolved Rated Match Gate
+## Requirement 10 — Active Rated Match Gate
 
 **Confirmed — Product Critical**
 
-- 未解決のRated Matchがあるユーザーは新しいRated Matchへ参加できない
-- 対象は報告待ち、再確認待ち、Incident未解決、Disputed等の未解決Rated Matchとする
+- Rated Match `status`が`matched | room_setup | reporting | disputed`の間、ユーザーは新しいRated Matchへ参加できない
+- `completed | cancelled`でgateを解除する
 - Unrated Matchの利用とサイト閲覧は可能
 - Rating処理の時系列を保ち、MVPで過去Matchを基準とした後続Rating再計算を不要にする
 - Gate判定はServer / DB側で行う
@@ -224,7 +224,10 @@ Unrated MatchではRating計算、Rating History作成、Current Rating更新を
 
 - 最初のResult Reportから5分経過しても相手が報告しない場合、**Opponent hasn't submitted a result** と **Report as unresponsive** を表示する
 - 5分経過だけでは自動勝敗、自動Penalty、自動Cancellation、Rating変更を行わない
-- 時間値は実利用で検証・調整できる設定値とする
+- first reportから30分で報告済みPlayerが`cancelled + nonresponse_no_rating`へ手動Closeできる
+- first reportから24時間でSystemが同じNo-Rating Closeを自動実行する
+- 一度CloseしたMatchをRated結果として復活させない
+- 時刻判定はserver-sideで行い、Closeをidempotentにする
 
 ## Requirement 12 — Responsibility Boundary
 
@@ -264,7 +267,7 @@ Unrated MatchではRating計算、Rating History作成、Current Rating更新を
 ## Room Setup
 
 - Match成立済みでResult未提出
-- Start FT3操作や `playing` 状態は持たない
+- 外部ゲーム内の開始状態を別のMatch statusとして持たない
 - 参加者は結果入力、Forfeit、Incident、Cancellationへ進める
 
 ## Reporting
@@ -317,13 +320,13 @@ Unrated MatchではRating計算、Rating History作成、Current Rating更新を
 - Rating変動なし
 - Cancellation履歴を保持する
 
-`playing` 状態は持たない。状態遷移の基本形は以下とする。
+状態遷移の基本形は以下とする。
 
 ```text
-room_setup → reporting → completed
+matched → room_setup → reporting → completed
                      ↘ disputed
 
-room_setup / reporting → cancelled
+matched / room_setup / reporting / disputed → cancelled
 ```
 
 ---
@@ -386,7 +389,7 @@ room_setup / reporting → cancelled
 - 古い画面からの操作は最新状態を再取得させる
 - Finalizationを一度だけ実行する
 
-## Unresolved Rated Match Exists
+## Active Rated Match Exists
 
 - Quick Match等の新規Rated参加を拒否する
 - 未解決Matchへ戻る導線を表示する
@@ -719,8 +722,6 @@ UI Projectionへ相手Reportの具体的内容を含めない。
 - 使用キャラクター・Round・Stage履歴
 - 証拠提出UIの詳細
 - Admin判定画面の詳細
-- Penaltyの具体的閾値・期間
-- 過去結果修正時のRating再計算方式
 
 ---
 
@@ -728,24 +729,13 @@ UI Projectionへ相手Reportの具体的内容を含めない。
 
 以下はResult Reportingの通常MVPフローを実装開始するBlockerではない。関連Feature Specで確定する。
 
-## OQ-01 Historical Rating Correction
+## Resolved — Historical Rating Correction
 
-**Open Question — High Impact / Cross-feature**
+**Resolved by Rating System / Admin / Dispute:** 後続履歴を再計算せずCurrent SeasonではCompensating Correction、completed Season Snapshotは固定とする。
 
-Adminが過去のcompleted Rated Matchを無効化・変更した場合に、後続Matchを再計算するか、補正Transactionを追加するか。
+## Resolved — Unresponsive Resolution SLA
 
-Rating SystemおよびAdmin / Dispute Feature Specで明示的に決定する。未解決Rated Match Gateは、新規の通常フローでこの問題を発生させないために採用する。
-
-## OQ-02 Unresponsive Resolution SLA
-
-**Open Question — Cross-feature / Non-blocking**
-
-- Unresponsive Report後、Adminまたは自動運用がいつまでに処理するか
-- 悪意ある未提出で相手を長時間Rated停止させないための解除方法
-- 一時的なRated Gate解除条件
-- 通知方法
-
-Admin / Dispute Feature Specで定義する。
+**Resolved by Admin / Dispute:** 5分で導線、30分で手動Close、24時間で自動Closeし、`cancelled`でgateを解除する。
 
 ## OQ-03 Five-Minute Threshold
 

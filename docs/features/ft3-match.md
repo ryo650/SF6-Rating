@@ -90,7 +90,7 @@ SF6-Ratingはゲーム自体を実行・監視しない。そのため、外部�
 4. Incident報告だけでは自動敗北・自動Rating変更を行わない
 5. 相手の復帰、本人の認否、双方の報告、必要に応じたAdmin判断で解決する
 6. 報告が食い違う場合はDisputeへ進む
-7. 証拠不足で責任不明の場合はMatchをinvalid / unresolved等にできるが、Incident履歴は保持する
+7. 証拠不足で責任不明の場合はMatchを`cancelled + admin_invalid_no_rating`にできるが、Incident履歴は保持する
 
 ## Mutual Cancellation
 
@@ -129,7 +129,7 @@ SF6-Ratingはゲーム自体を実行・監視しない。そのため、外部�
 - ゲームごとの勝敗をリアルタイム入力させない
 - 現在スコア、ゲーム番号、Round、使用キャラクターを試合中に入力させない
 - 通常終了後に最終スコアだけをResult Reportingへ入力する
-- Start FT3ボタンおよび `playing` 状態を必須としない
+- 外部ゲーム内の開始状態を別のMatch statusとして持たない
 
 ## Requirement 4 — Rated Status
 
@@ -203,7 +203,7 @@ Confirmed Incidentは履歴へ残し、繰り返し回数や期間に応じて�
 **Confirmed**
 
 - 証拠不足でどちらに責任があるか判断できない場合、Ratingを変更しない
-- Matchをinvalid / unresolved等の適切な状態へ解決できる
+- Matchを`cancelled + admin_invalid_no_rating`へ解決できる
 - Match結果を無効または未解決としてもIncident報告履歴を削除しない
 - 単なる未確認報告をConfirmed Incidentのペナルティ回数へ自動加算しない
 
@@ -252,7 +252,7 @@ Confirmed Incidentは履歴へ残し、繰り返し回数や期間に応じて�
 
 # 6. States
 
-FT3の外部ゲーム内進行を表す `playing` 状態は持たない。Match全体の主要状態はMatch Room、Result Reporting、Dispute仕様と共通の状態モデルへ従う。
+FT3の外部ゲーム内進行を専用のMatch statusでは表さない。Match全体の主要状態はMatch Room、Result Reporting、Dispute仕様と共通の状態モデルへ従う。
 
 ## Active / Awaiting Outcome
 
@@ -299,7 +299,7 @@ FT3の外部ゲーム内進行を表す `playing` 状態は持たない。Match�
 - 通常終了またはConfirmed Forfeitとして結果が確定済み
 - RatedならRating処理、Unratedなら履歴処理へ進む
 
-## Invalid / Unresolved
+## Cancelled — Admin Invalid No Rating
 
 - 証拠不足等により責任・勝敗を確定できない
 - Rating変動なし
@@ -323,7 +323,7 @@ FT3の外部ゲーム内進行を表す `playing` 状態は持たない。Match�
 
 ## User Intentionally Leaves but Denies Responsibility
 
-悪意を証明することを必須にしない。双方の申告、過去のConfirmed Incidents、提出可能な証拠、Admin判断を用いる。責任を確定できなければRatingを変更せずinvalid / unresolvedとし、Incident履歴は残す。
+悪意を証明することを必須にしない。双方の申告、過去のConfirmed Incidents、提出可能な証拠、Admin判断を用いる。責任を確定できなければRatingを変更せず`cancelled + admin_invalid_no_rating`とし、Incident履歴は残す。
 
 ## Repeated “Connection Issue” Claims
 
@@ -434,7 +434,7 @@ SF6内では継続可能。再ログイン・再表示時にActive MatchをDBか
 ## Admin
 
 - 双方の報告、Incident履歴、Match Events、必要な証拠を確認できる
-- 関連ルールに基づきForfeit、Abandonment、invalid / unresolved、Mutual Cancellation等を解決できる
+- 関連ルールに基づきForfeit、Abandonment、`cancelled + admin_invalid_no_rating`、Mutual Cancellation等を解決できる
 - Confirmed Incidentを確定または否認できる
 - Rating変更を伴う解決はAtomicかつ監査可能な処理で行う
 - 段階的ペナルティをAdmin / Dispute Feature Specの範囲で付与・解除できる
@@ -454,7 +454,7 @@ SF6内では継続可能。再ログイン・再表示時にActive MatchをDBか
 - Rated / Unrated
 - Match Status
 - Created At
-- Completion Type: Normal / Forfeit / Mutual Cancellation / Invalid / Unresolved
+- Resolution Type: `normal | forfeit | mutual_cancel | admin_invalid_no_rating`
 - Winner（確定時）
 - Loser（確定時）
 - Final Set Score（Normal Completion時）
@@ -575,7 +575,7 @@ SF6内では継続可能。再ログイン・再表示時にActive MatchをDBか
 
 - **Derived Technical Decision:** FT3の結果確定、Rating History作成、現在Rating更新を必要に応じ1 Transactionで処理する
 - **Derived Technical Decision:** Forfeit、Incident、Cancellation、Resultの重複送信をIdempotentにする
-- **Derived Technical Decision:** 通常完了、Forfeit、Mutual Cancellation、invalid / unresolvedを同時確定できないよう状態遷移を保護する
+- **Derived Technical Decision:** 通常完了、Forfeit、Mutual Cancellation、Admin Invalid No Ratingを同時確定できないよう状態遷移を保護する
 - **Derived Technical Decision:** ブラウザやRealtimeをTruthとせず、DBのMatch・Report・Resolution状態から復元する
 - 通信Retryや複数TabでRating・Incident・Penaltyを二重適用しない
 - 未確認IncidentとConfirmed Incidentをデータ上で混同しない
@@ -614,7 +614,7 @@ SF6内では継続可能。再ログイン・再表示時にActive MatchをDBか
 - [ ] セット途中のキャラクター変更を禁止しない
 - [ ] ゲームごとのLive Score入力が存在しない
 - [ ] FT3終了後に最終スコアだけを報告できる
-- [ ] Start FT3ボタンと `playing` 状態が存在しない
+- [ ] 外部ゲーム内の開始状態を別のMatch statusとして持たない
 
 ## Rated / Rating Boundary
 
@@ -652,8 +652,8 @@ SF6内では継続可能。再ログイン・再表示時にActive MatchをDBか
 - [ ] Incident報告だけで勝敗・Rating・Penaltyが確定しない
 - [ ] 本人認否、双方一致、Admin判断等によりConfirmed Incidentへ変更できる
 - [ ] 主張が食い違う場合にDisputeへ進める
-- [ ] 責任不明の場合にRatingを変更せずinvalid / unresolvedへ解決できる
-- [ ] invalid / unresolvedでもIncident履歴が保持される
+- [ ] 責任不明の場合にRatingを変更せず`cancelled + admin_invalid_no_rating`へ解決できる
+- [ ] `cancelled + admin_invalid_no_rating`でもIncident履歴が保持される
 - [ ] 未確認報告とConfirmed Incidentが別に扱われる
 - [ ] Repeated Confirmed IncidentsをWarning・一時Matchmaking制限へ接続できる
 - [ ] 具体的なPenalty閾値を本Featureで固定しない
@@ -670,7 +670,7 @@ SF6内では継続可能。再ログイン・再表示時にActive MatchをDBか
 
 - [ ] SF6-RatingがゲームごとのLive ScoreをTruthとして保存しない
 - [ ] 使用キャラクター、Round、Connection status、Custom Room内部状態をTruthとして保存しない
-- [ ] Normal / Forfeit / Mutual Cancellation / Invalid / Unresolvedを区別できる
+- [ ] `normal | forfeit | mutual_cancel | admin_invalid_no_rating`を区別できる
 - [ ] Admin操作、Incident確定、Rating変更が監査可能である
 - [ ] Reload・Sleep・複数Tab後にDBからActive Matchと申告状態を復元できる
 
@@ -706,10 +706,8 @@ SF6内では継続可能。再ログイン・再表示時にActive MatchをDBか
 - GameごとのRating
 - 悪意・故意をAI等で自動推定する機能
 - 高度な不正検知
-- Penaltyの具体的閾値・期間
 - Disputeの証拠提出・審査UIの詳細
 - Admin解決画面の詳細
-- 過去結果修正時のRating再計算方式
 
 ---
 
@@ -717,9 +715,9 @@ SF6内では継続可能。再ログイン・再表示時にActive MatchをDBか
 
 以下はFT3 Matchの実装開始を止めるBlockerではない。関連Feature Specで確定する。
 
-## OQ-01 Confirmed Incident Criteria
+## Resolved — Confirmed Incident Criteria
 
-**Open Question — Cross-feature / Non-blocking**
+**Resolved by Admin / Dispute Feature Spec**
 
 - 本人認否・双方一致・Admin判断以外にConfirmed Incidentとする条件
 - 証拠の種類と信頼度
@@ -728,9 +726,9 @@ SF6内では継続可能。再ログイン・再表示時にActive MatchをDBか
 
 Dispute / Admin Feature Specで定義する。
 
-## OQ-02 Progressive Penalty Thresholds
+## Resolved — Progressive Penalty Thresholds
 
-**Open Question — Cross-feature / Non-blocking**
+**Resolved by Admin / Dispute Feature Spec**
 
 - 集計期間
 - WarningまでのConfirmed Incident回数
@@ -741,15 +739,9 @@ Dispute / Admin Feature Specで定義する。
 
 具体値はAdmin / Dispute Feature Specで定義する。悪意の証明ではなくRepeated Match Completion Failuresを基準にする。
 
-## OQ-03 Invalid / Unresolved Status Naming
+## Resolved — Canonical Match Status Naming
 
-**Open Question — Low Impact**
-
-- 内部状態を `invalid`、`unresolved`、または別状態に分けるか
-- ユーザー向け表示文言
-- 公開対戦履歴へどの粒度で表示するか
-
-Result Reporting / RatingおよびAdmin / Dispute Feature Specで確定する。
+**Resolved by Architecture / Admin / Dispute:** 勝敗なしは`cancelled`とし、理由を`resolution_type`で表す。
 
 ## OQ-04 Score at Termination
 
@@ -771,12 +763,6 @@ MVPでは任意データとし、Winner / LoserとCompletion Typeを結果確定
 
 MVPでは5分をAssumptionとして開始し、実利用データで検証する。
 
-## OQ-06 Historical Rating Correction
+## Resolved — Historical Rating Correction
 
-**Open Question — High Impact / Cross-feature**
-
-- Adminが過去MatchをForfeit、invalid、unresolved等へ変更した場合のRating修正方法
-- 後続Matchを再計算するか、補正Transactionを追加するか
-- Season終了後の修正方法
-
-Rating SystemおよびDispute / Admin Feature Specで明示的に決定する。
+**Resolved by Rating System / Admin / Dispute:** 後続履歴を再計算せずCurrent SeasonではCompensating Correction、completed Season Snapshotは固定とする。

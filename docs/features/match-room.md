@@ -234,7 +234,7 @@ Timelineは通信切断後にも復元できるよう永続化する。
 - SF6-RatingはSF6側のCustom Room作成、参加、対戦開始、対戦中状態を自動検証しない。
 - `Room created` と `Joined` はユーザーが送った進行補助メッセージであり、SF6内の事実を証明するものではない。
 - SF6-Rating側に `Start FT3` ボタンを設けない。
-- Match状態に `playing` を設けない。
+- 外部ゲーム内の進行を別のMatch statusとして設けない。
 - Result Reportingへ進むために `Room created` や `Joined` の送信を必須条件にしない。
 - 最終的な勝敗は双方のResult Report一致によって確定する。
 
@@ -313,7 +313,7 @@ Host変更、定型メッセージ送信、状態遷移、取消要求等は信�
 6. **Confirmed:** 定型メッセージとシステムイベントを `match_events` のTimelineとして保存する。
 7. **Confirmed:** SF6側の実際のRoom作成、参加、対戦開始、対戦中状態を自動検証しない。
 8. **Confirmed:** `Start FT3` ボタンを作らない。
-9. **Confirmed:** `playing` 状態を作らない。
+9. **Confirmed:** 外部ゲーム内の進行を別のMatch statusとして作らない。
 10. **Confirmed:** User Codeのワンタップコピー機能を作らず、見やすく表示する。
 11. **Confirmed:** Active Match中もサイト内の他ページを閲覧できるが、新しいMatchmakingは開始できない。
 12. **Confirmed:** Room setup開始から10分はtrouble / No-show対応の目安であり、自動キャンセル時刻ではない。
@@ -335,7 +335,7 @@ matched → room_setup → reporting → completed
 reporting ──────────→ disputed
 ```
 
-`playing` 状態は存在しない。
+外部ゲーム内の進行を表す追加statusは存在しない。
 
 ## Matched
 
@@ -766,7 +766,7 @@ No-show / cancellationの詳細データと判定はDispute / Admin Feature Spec
 
 - [ ] 状態モデルが `matched → room_setup → reporting → completed` を基本とする
 - [ ] `cancelled` と `disputed` の分岐を持つ
-- [ ] `playing` 状態が存在しない
+- [ ] 外部ゲーム内の進行を表す追加statusが存在しない
 - [ ] Start FT3ボタンが存在しない
 - [ ] SF6側でRoom作成・参加・対戦開始したことを自動検証しない
 - [ ] Room created / Joined未送信でもResult Reportingへ進める
@@ -817,7 +817,7 @@ No-show / cancellationの詳細データと判定はDispute / Admin Feature Spec
 - Custom Roomの自動作成
 - SF6側のRoom作成・参加・対戦開始・対戦中状態の自動検証
 - Start FT3ボタン
-- `playing` 状態
+- 外部ゲーム内進行専用の追加status
 - SF6ユーザーコードのワンタップコピー
 - QRコード
 - SF6への自動入力
@@ -851,17 +851,13 @@ No-show / cancellationの詳細データと判定はDispute / Admin Feature Spec
 
 Dispute / Admin Feature Specで定義する。10分経過による自動キャンセルは行わない。
 
-## OQ-02 Active Match During Dispute
+## Resolved — Active Rated Match During Dispute
 
-**Open Question — Cross-feature / Non-blocking**
+**Resolved by Result Reporting / Admin / Dispute**
 
-- Matchが `disputed` の間も新しいMatchmakingを禁止するか
-- Result disputeとNo-show disputeで扱いを分けるか
-- Admin確認が長期化した場合のユーザー体験
+Rated Matchは`disputed`の間もActive Rated Match Gateを維持する。Admin Resolutionまたは双方のMutual No-Rating Resolutionにより`completed | cancelled`へ遷移した時点でgateを解除する。Result-reporting nonresponseはfirst reportから30分の手動Close、24時間の自動Closeで長期Blockを避ける。
 
-Dispute / Admin Feature Specで定義する。
-
-## OQ-03 Match Event Retention
+## OQ-02 Match Event Retention
 
 **Open Question — Low Impact**
 
@@ -872,7 +868,7 @@ Dispute / Admin Feature Specで定義する。
 
 MVPではActive Matchに必要なeventsを取得し、表示件数に上限を設ける。
 
-## OQ-04 Active Match Profile Changes
+## OQ-03 Active Match Profile Changes
 
 **Open Question — Low Impact**
 
@@ -882,7 +878,7 @@ MVPではActive Matchに必要なeventsを取得し、表示件数に上限を�
 
 MVPでは対戦中の合流情報不整合を避けるため、Active Match中は該当情報を変更不可とする案を第一候補とする。
 
-## OQ-05 Host Assignment Algorithm
+## OQ-04 Host Assignment Algorithm
 
 **Open Question — Implementation Detail**
 
@@ -891,7 +887,7 @@ MVPでは対戦中の合流情報不整合を避けるため、Active Match中�
 
 プロダクト要件は「片方へ不合理に偏らないこと」であり、具体方式はImplementation Planで決める。
 
-## OQ-06 Preset Message Set
+## OQ-05 Preset Message Set
 
 **Open Question — Validation**
 

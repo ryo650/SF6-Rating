@@ -95,10 +95,9 @@ R'_A = R_A + Δ_A
 - Unrated Match
 - Mutual Cancellation
 - Cancelled Match
-- Unresolved Match
+- Nonterminal Match
 - Disputedで未解決のMatch
 - Disconnect / Abandonment / Incidentの報告のみ
-- Invalid Match
 
 ## Requirement 5 — Rounding
 
@@ -168,6 +167,9 @@ Rated結果確定時に、次を一つのAtomic Transactionとして処理する
 - CorrectionをRating Historyの独立した監査可能イベントとして保存する
 - 過去の通常Rating Historyを削除・上書きしない
 - Correction適用とCurrent Rating更新をAtomicかつIdempotentにする
+- `source_match_id + correction_type`等を一意にして二重適用を防止する
+- Current Seasonでは同じDomain Action内でseason stats correctionも行う
+- completed SeasonのFinal Rating / Ranking / Stats Snapshotは変更しない
 - 詳細なAdmin操作と承認フローはAdmin / Dispute Feature Specで定義する
 
 ---
@@ -178,7 +180,7 @@ Rated結果確定時に、次を一つのAtomic Transactionとして処理する
 2. Ratingは確定したRated FT3のWinner / Loserだけから計算する。
 3. Set ScoreはRating変動へ影響しない。
 4. Explicit Forfeitは通常のWin / Lossとして計算する。
-5. Cancelled、Unresolved、Incidentのみ、UnratedではRatingを変更しない。
+5. `status=cancelled`、Incidentのみ、UnratedではRatingを変更しない。
 6. Match成立時のRating Snapshotを計算入力として固定する。
 7. Previewと本計算は同じFormula・Parameterを使用する。
 8. 通常変動は小数計算後に一度だけ四捨五入し、Winner +N / Loser -Nとする。
@@ -222,7 +224,7 @@ Rated結果確定時に、次を一つのAtomic Transactionとして処理する
 
 ## No Rating Change
 
-- Unrated、Cancelled、Unresolved、Incidentのみ、Invalid等
+- Unrated、`status=cancelled`、Nonterminal、Incidentのみ
 - Match状態は更新され得るがRating処理なし
 
 ## Correction Pending
@@ -505,7 +507,7 @@ Rated結果確定時に、次を一つのAtomic Transactionとして処理する
 - [ ] 同Rating同士で通常Winner +32 / Loser -32になる
 - [ ] Set Score差がRating変動へ影響しない
 - [ ] Explicit Forfeitを通常Win / Lossとして計算できる
-- [ ] Unrated、Cancelled、Unresolved、IncidentのみではRatingが変化しない
+- [ ] Unrated、`status=cancelled`、Nonterminal、IncidentのみではRatingが変化しない
 
 ## Snapshot and Preview
 
@@ -588,15 +590,14 @@ Rating Systemの通常MVPフローをBlockするOpen Questionはない。
 - Initial Ratingとの接続
 - Product Specの暫定値を実装前シミュレーションで検証する
 
-## OQ-02 Admin Correction Workflow
+## Resolved — Admin Correction Workflow
 
-- Match無効化を誰がどの証拠・権限で承認するか
-- Correction理由の分類
-- Userへの通知と表示
-- Correction後のRanking更新
-- Admin / Dispute Feature Specで確定する
+- Admin / Dispute Feature Specの認可済みDomain ActionのみがMatchを無効化できる
+- Current SeasonではRating correction、Stats correction、Ranking更新、Public History非表示を同じidempotent Domain Actionで行う
+- completed SeasonのFinal Snapshotは変更しない
+- Correction理由、User通知、監査履歴の詳細はAdmin / Dispute Feature SpecをSource of Truthとする
 
-## OQ-03 Unrated Statistics
+## OQ-02 Unrated Statistics
 
 - Unrated MatchをProfile戦績へどこまで含めるか
 - Ratingは変更しないことのみ確定している

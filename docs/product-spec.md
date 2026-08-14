@@ -1,6 +1,6 @@
 # SF6-Rating — Product Spec
 
-Status: Draft  
+Status: Reviewed — Ready for Implementation Planning
 Product: SF6-Rating
 
 ---
@@ -200,12 +200,11 @@ SF6-Ratingの中心価値である「近い実力の相手とすぐ3先する」
 
 ユーザー人口を複数のモードへ分散させず、対戦成立率を高める。
 
-待機中のユーザーは、
+共通Available Poolを使用するが、entry modeごとにeligibilityを分ける。
 
-- 自動マッチング候補になる
-- 募集一覧にも表示される
-
-状態となる。
+- Quick Match: auto-match ON、募集一覧表示可
+- Find Opponent受付中: auto-match OFF、募集一覧表示のみ
+- 閲覧のみ: Poolへ掲載せず、auto-match対象外
 
 募集一覧から相手を選択した場合、相手の承認を待たず即マッチ成立とする。
 
@@ -350,7 +349,7 @@ R'_A = R_A + 64 × (S_A - E_A)
 - 敗北時のスコア `S_A`: `0`
 - 同レート同士の通常変動: `±32`
 
-計算結果を整数として保存・表示する際の丸め方法はFeature Specで決定する。通常時の最大 / 最小変動量、レート下限 / 上限、極端なレート差の扱いもFeature Specで検証する。
+計算結果の整数丸め、Clamp、境界は[Rating System Feature Spec](./features/rating-system.md)をSource of Truthとする。
 
 ---
 
@@ -415,6 +414,8 @@ Placement中の1セットあたりの変動量には暫定で `±96` の上限�
 24時間の起点は、両者の報告が一致しRated対戦結果が確定した時刻とする。その時刻から24時間が経過するまで、同じ2プレイヤー間の追加対戦はアンレート扱いになる。
 
 その後も対戦自体は自由に行える。アンレート戦ではレーティングは変動せず、アンレート戦を行っても24時間の期限は延長・リセットしない。
+
+Player pairは順序非依存のcanonical pair keyで識別する。Rated / UnratedはClient指定だけで決めず、Match作成Transaction内でpair単位Lockまたは同等の直列化を行い、cooldown判定とMatch作成を同一Transactionで確定する。
 
 対戦履歴・戦績として保存するかどうかの詳細はFeature Specで決定する。
 
@@ -598,7 +599,7 @@ Product boundary:
 
 4. 募集一覧ではユーザー名・アイコン・レート・地域などを表示できる。
 
-5. 募集一覧へ表示されているユーザーは「現在対戦可能」とみなす。
+5. 募集一覧へ表示されているユーザーは手動選択可能だが、Find Opponent受付中は自動マッチング対象にしない。
 
 6. 募集一覧から選択された場合、追加承認なしでマッチ成立する。
 
@@ -636,6 +637,14 @@ Product boundary:
 
 23. モバイル・PCの両方で主要機能を利用できる。
 
+24. Match `status`は`matched | room_setup | reporting | disputed | completed | cancelled`だけを使用する。
+
+25. 正式な勝敗がある終了は`completed`、勝敗なしの終了は`cancelled`とする。終了理由は`resolution_type`、後日無効化は`result_validity`、Rating処理は`rating_status`で分離する。
+
+26. `matched | room_setup | reporting | disputed`のRated Matchを持つPlayerは新しいRated Matchへ参加できず、`completed | cancelled`でgateを解除する。
+
+27. Current Season中のCompleted Match無効化はRatingと競技Statsを同じDomain Actionで補正し、Placement countは巻き戻さない。Completed SeasonのFinal Snapshotは変更しない。
+
 ---
 
 # 9. Edge Cases
@@ -648,7 +657,7 @@ Product boundary:
 2. 両者へ再入力を要求
 3. 再度不一致の場合はdispute状態にする
 4. 運営が確認
-5. 正しい結果を確定、または対戦を無効化
+5. 正しい結果を`completed + admin_result`で確定、または`cancelled + admin_invalid_no_rating`で終了
 
 ## Player Does Not Respond
 
@@ -747,70 +756,44 @@ MVPを機能的に完成と判断する最低条件:
 
 ---
 
+# 11.1 Cross-Spec Resolved Decisions
+
+- Season終了30分前から新規Rated Matchmakingを停止する。
+- Season終了時点でRating未確定の旧Season Rated Matchは`status=cancelled`、`resolution_type=season_boundary_no_rating`で終了し、後からRated結果として復活させない。Dispute / Incidentの監査記録は保持できる。
+- Current Season中のCompleted Rated Match無効化は、Compensating Rating Correction、Rated W/LとMatch Countの除外、Win Rate再計算、score breakdown除外、Ranking更新、Public Match History非表示を同じDomain Actionで行う。Placement countは巻き戻さない。
+- completed SeasonのFinal Rating / Ranking / Stats Snapshotは変更しない。
+- Progressive Restrictionは`incident.confirmed_at`基準のrolling 30 daysを使う。同一Matchにつき`1 user × 1 match`で最大1 Reliability Strikeとする。
+- MVP Incident Typesは`no_show | abandonment | result_nonresponse | match_completion_failure`とする。
+- Strike段階は1=Warning、2=1時間停止、3=24時間停止、4+=Admin Reviewで最大7日とする。無効化されたIncidentは将来の集計から除外し、既発行RestrictionはAdminの明示的Revoke / Adjustでのみ変更する。
+- Rating丸め、Clamp、Master初期Rating境界、同順位、Soft Reset丸め、Public Profileのキャラクター非公開、Dispute evidence、Progressive Restriction、Compensating Correctionは関連Feature Specsで解決済みである。
+
 # 12. Open Questions
 
-Product Spec段階では以下を未決定とする。
-
-## Rating
-
-- 計算結果の丸め方法
-- 通常時の最大 / 最小変動量
-- レート下限 / 上限
-- レート差が極端な場合の処理
-- 期待値スケール250・K値64・Placement上限±96のシミュレーション検証
-
-## Initial Rating / Placement
-
-- SF6ランク / MRから仮レートへの換算表の最終調整
-- Master初期レート下限の具体値
+Implementation Planningへ持ち越す項目だけを記載する。
 
 ## Matchmaking
 
-- 初期許容レート差
-- レート検索範囲の拡大速度
-- 地域区分
-- 地域条件の緩和方法
-- 最大待機時間
+- Nearby country grouping
+- Candidate score weights
+- Waiting heartbeat間隔
 
 ## Seasons
 
-- シーズンの具体的な開始日・終了日
-- シーズン終了時の同順位処理
-- ソフトリセット結果の丸め方法
+- Season開始日 / 命名規則
 
-## Rematch
+## Match Completion
 
-- Rated → UnratedへのUI表示
-- アンレート戦を正式戦績へ含めるか
-
-## Match Room
-
-- カスタムルーム作成担当の選択方法
-- 交代手順
-- 定型メッセージ一覧
-- Match Roomのタイムアウト時間
-
-## Abandonment
-
-- 放置判定までの時間
-- 放置履歴の有効期間
-- ペナルティ発生回数
-- マッチング制限時間
-- 対戦途中離脱の処理
+- Forfeit時の途中Score任意保存
 
 ## Profile
 
-- 公開プロフィールの正確な表示項目
-- 対戦履歴の公開範囲
-- キャラクター情報をプロフィールへ載せるか
-- アイコンのアップロード方式
+- Match History初期ページ件数
+- Username検索をMVP必須にするか
 
 ## Moderation
 
-- dispute時に使用する証拠
-- 通報機能をどこまでMVPに含めるか
-- 管理者権限
-- 制限 / BANルール
+- Rate limit具体値
+- Admin Queue SLA / 通知
 
 ## Success Metrics
 

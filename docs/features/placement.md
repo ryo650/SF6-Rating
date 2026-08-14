@@ -720,12 +720,8 @@ MVPでは設定可能な合理的範囲を仮置きする。Starting Rating自�
 
 実装前シミュレーションと公開後のPlacement完了データで検証し、Rule Versionを更新可能にする。
 
-## OQ-03 New Season During Active Placement
+## Resolved — New Season During Active Placement
 
-**[Open Question — Non-blocking / Cross-feature]**
+**[Resolved by Seasons]**
 
-- Season境界をまたぐPlacementユーザーのSeason記録の表示方法
-- Soft ResetをPlacement中ユーザーへ適用するか
-- Placement完了時のランキング参加Season
-
-Placementを再開始しないことは確定している。具体的なSeason境界処理はSeason Feature Specで決定する。
+Season境界でPlacement進捗とCurrent Ratingをそのまま引き継ぎ、Soft Resetは適用しない。新Seasonで10/10に到達した直後からそのSeasonのRanking eligibleとする。過去Seasonの表示は確定済みSnapshotのみを使用する。

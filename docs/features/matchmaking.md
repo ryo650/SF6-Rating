@@ -124,6 +124,8 @@ SF6-Ratingの中心価値である「実力の近い相手を短時間で見つ�
 
 - Quick MatchとFind Opponentは共通のAvailable Poolを使用する。
 - Available PoolにはQuick Match中または対戦受付中のユーザーだけを含める。
+- Quick Match entryは`auto_match_eligible=true`かつ一覧表示可能とする。
+- Find Opponent受付中entryは一覧表示のみで`auto_match_eligible=false`とする。
 - Find Opponentを閲覧しているだけのユーザー、期限切れユーザー、進行中Matchを持つユーザー、制限中ユーザーは含めない。
 - Match成立、手動キャンセル、期限切れ、アカウント制限時にPoolから除外する。
 
@@ -231,6 +233,9 @@ Find Opponentの候補カードには次を表示する。
 - Unrated相手を選択した場合は最初からUnrated Matchとして作成する。
 - Unrated対戦を行っても24時間期限を延長またはリセットしない。
 - 24時間の判定はMatch作成直前にサーバー側で再確認する。
+- Player pairは順序非依存canonical pair keyで識別する。
+- Match作成Transaction内でpair単位Lockまたは同等の直列化を行い、cooldown判定とMatch作成を同一Transactionで処理する。
+- Rated / Unrated判定はClient指定だけに依存させない。
 
 ## FR-10 Rating Change Preview
 
@@ -603,11 +608,12 @@ Matchは成立済みのためWaitingへ戻さない。単発では即時の重�
 
 ## Rated Cooldown
 
-- Player Pair
+- Canonical Player Pair Key（Player順序に非依存）
 - Last Rated Result Confirmed At
 - Next Rated Eligible At
 
 24時間の基準はRated Match作成時ではなく、直近Rated結果の確定時刻とする。
+pair単位の直列化、cooldown再判定、Match作成は同一Transactionで行う。
 
 ## Matchmaking Event / Audit
 

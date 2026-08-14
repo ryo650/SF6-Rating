@@ -229,21 +229,20 @@ match_eventsへ保存
 相手へ通知
 ```
 
-Match状態は例として次のステートマシンで管理する。
+Match状態は次のステートマシンで管理する。
 
 ```text
 matched
 → room_setup
-→ playing
 → reporting
 → completed
 
 分岐:
-→ disputed
-→ cancelled
+reporting → disputed → completed / cancelled
+matched / room_setup / reporting / disputed → cancelled
 ```
 
-正式な状態名と遷移条件はFeature Specで確定する。
+勝敗が正式に存在する終了だけを`completed`、勝敗なしの終了を`cancelled`とする。終了理由は`resolution_type`、後日の結果無効化は`result_validity`、Rating処理は`rating_status`としてlifecycleから分離する。
 
 ## Result Confirmation and Rating Update
 
@@ -293,7 +292,10 @@ result_reportsへ保存
 
 - Player A / Player B
 - Rated / Unrated
-- Match状態
+- `status`: `matched | room_setup | reporting | disputed | completed | cancelled`
+- `resolution_type`: `normal | forfeit | admin_result | mutual_cancel | nonresponse_no_rating | mutual_no_rating | admin_invalid_no_rating | season_boundary_no_rating`
+- `result_validity`: result-bearing Matchについて`valid | invalidated`
+- `rating_status`: `not_applicable | pending | applied | correction_pending | corrected`
 - ホスト担当
 - 最終スコア、勝者
 - シーズン
@@ -563,6 +565,14 @@ MVPではRedis、専用Cache、専用Matchmaking Serverを導入しない。計�
 
 PostgreSQLを唯一の正しい状態とする。Realtime通知やブラウザ内状態は補助的なものとして扱う。
 
+- Current Rating: `profiles.current_rating`
+- Rating履歴: `rating_history`
+- Current SeasonのRated W/L、Match Count、Win Rate、score breakdown: active Seasonの`season_player_records`
+- 過去Season成績: completed Seasonの`season_player_records`固定Snapshot
+- Public Profileの主要read source: `profiles` + active Seasonの`season_player_records`
+
+completed SeasonのFinal Rating / Ranking / Stats Snapshotは後日のMatch無効化でも変更しない。
+
 ## State Recovery
 
 - 進行中MatchをDatabaseへ永続化
@@ -579,6 +589,7 @@ PostgreSQLを唯一の正しい状態とする。Realtime通知やブラウザ�
 - Rating History作成
 - 現在レート更新
 - シーズン戦績更新
+- Completed Match無効化時のRating correctionとStats correction
 
 処理の一部だけが成功する状態を許可しない。
 
@@ -821,6 +832,39 @@ Productionデータと開発を分離し、PRごとにUIとフローを確認し
 
 MVPの需要検証ではFreeで開始できるため。利用量、継続性、バックアップ、Realtime上限等から必要になった時点でProへ移行する。
 
+## Decision 11 — Match lifecycleとresolutionを分離
+
+`status`は進行状態だけを表す。`resolution_type`、`result_validity`、`rating_status`を別属性にし、No-Ratingや後日無効化を追加statusとして表現しない。
+
+### Canonical transition table
+
+| From | Operation | To | Authority |
+| --- | --- | --- | --- |
+| `matched` | Initialize room | `room_setup` | Server |
+| `room_setup` | Enter result reporting | `reporting` | Either participant through validated server action |
+| `matched` / `room_setup` | Mutual cancel or authorized no-show close | `cancelled` | Both participants, timed participant action, or Admin as specified |
+| `reporting` | Matching valid reports / confirmed forfeit | `completed` | Server |
+| `reporting` | Reconfirmed mismatch | `disputed` | Server |
+| `reporting` | 30-minute manual or 24-hour automatic nonresponse close | `cancelled` | Reporting participant via Server / System job |
+| `reporting` | Mutual No-Rating agreement | `cancelled` | Both participants via Server |
+| `disputed` | Confirm a result | `completed` | Admin domain action |
+| `disputed` | Mutual No-Rating or Admin invalidation | `cancelled` | Both participants or Admin domain action |
+| any nonterminal state | Season boundary close | `cancelled` | System rollover job |
+
+Rated Match gateは`matched | room_setup | reporting | disputed`の間維持し、`completed | cancelled`で解除する。`reporting`のnonresponseはfirst reportから5分でUnresponsive導線、30分で手動No-Rating Close、24時間で自動No-Rating Closeとする。`disputed`はAdmin ResolutionまたはMutual No-Rating Resolutionまでgateを維持する。
+
+## Decision 12 — Rated pair cooldownをDatabaseで直列化
+
+Player pairを順序非依存canonical pair keyで表す。Match作成Transaction内でpair単位Lockまたは同等の直列化を行い、24時間cooldown判定とMatch作成を同一Transactionで処理する。Rated / Unrated判定をClient指定だけに依存させない。
+
+## Decision 13 — Completed Match correction
+
+Current Season中のCompleted Match無効化では、元結果を`result_validity=invalidated`として監査用に保持し、RatingとStatsを同じidempotent Domain Actionで補正する。Rated W/L、Rated Match Count、Win Rate、3-0 / 3-1 / 3-2 breakdownから除外し、Rankingへ修正後Ratingを反映し、Public Match Historyから隠す。Placement countは巻き戻さない。`source_match_id + correction_type`等の一意性で二重適用を防止する。
+
+## Decision 14 — Season boundary closes pending Rated Matches
+
+Season終了30分前から新規Rated Matchmakingを停止する。Season終了時点でRating未確定の旧Season Rated Matchは`cancelled + season_boundary_no_rating`で終了する。Dispute / Incidentの監査記録は保持できるが、後からRated結果として復活させず、Soft Reset後のlate deltaを発生させない。
+
 ---
 
 # 16. Risks
@@ -867,57 +911,16 @@ Vercel、Supabase、OAuth Provider、SF6の障害や仕様変更により一部�
 
 ---
 
-# 17. Open Questions
+# 17. Open Questions for Implementation Planning
 
-## Matchmaking
+横断レビューで解決済みのMatch state、Rating丸めとClamp、Master初期Rating境界、同順位、Soft Reset丸め、Dispute evidence、Progressive Restriction、Compensating Correction、データ正本、24時間cooldownのDB保証はここへ残さない。
 
-- AtomicなMatch成立処理で採用する具体的なロック / SQL方式
-- 自動マッチングを起動する契機と実行方式
-- 初期許容レート差
-- 待ち時間に応じた検索範囲の拡大速度
-- 地域区分と地域条件の緩和方法
-- 最大待機時間
-- Realtimeの具体的なChannel / Broadcast設計
-
-## Match State Machine
-
-- 正式な状態名
-- 各状態の遷移条件
-- タイムアウト後の遷移
-- 対戦途中離脱の扱い
-- ホスト交代の遷移と競合処理
-
-## Rating and Dispute
-
-- Rating計算結果の丸め方法
-- 極端なレート差、上限 / 下限、最大 / 最小変動
-- Placement上限と初期レート換算のシミュレーション
-- disputeで過去Matchを変更した場合の再計算方式
-- 再計算時の監査履歴と後続Matchへの影響
-- AdminによるMatch無効化をAtomicに適用する方法
-
-## Data Model
-
-- 各テーブルの正確なカラム・型
-- 進行中Match一意性を保証する具体的な制約
-- `profiles.current_rating`と`season_player_records`の責務境界
-- アンレート戦を正式戦績へ含めるか
-- 対戦履歴の公開範囲と保持期間
-- Admin監査ログを独立Entityとして持つか
-
-## Security and Abuse
-
-- Rate Limitの値と実装場所
-- CAPTCHAを導入する条件
-- SF6ユーザーコード所有確認を追加する条件と方式
-- dispute証拠の種類、Storage、保持期間
-- Admin権限の付与・失効方法
-
-## Infrastructure and Operations
-
-- Supabase / Vercelの具体的なリージョン
-- Preview / Test用Supabaseプロジェクトの運用方法
-- Production Backup要件とPro移行条件
-- FreeプランからProへ移行する定量的な閾値
-- Sentry / Speed Insightsを追加する条件
-- Redis / 専用Matchmaking Serverを検討する性能閾値
+- Season開始日 / 命名規則
+- Nearby country grouping
+- Candidate score weights
+- Waiting heartbeat間隔
+- Match History初期ページ件数
+- Rate Limit具体値
+- Admin Queue SLA / 通知
+- Username検索をMVP必須にするか
+- Forfeit時の途中Score任意保存
