@@ -1,6 +1,6 @@
 # SF6-Rating
 
-SF6-RatingのWebアプリケーションです。Phase 0では、Next.js App Router、ja/en、Supabase接続、テスト、CI、Vercel Previewのための基盤だけを提供します。
+SF6-RatingのWebアプリケーションです。Phase 0のNext.js基盤と、Phase 1のGit管理されたSupabase data foundationを提供します。Auth UI、Onboarding、Matchmaking等のFeature実装はPhase 2以降です。
 
 ## Requirements
 
@@ -37,7 +37,17 @@ npm run supabase -- db reset --local
 npm run supabase -- stop
 ```
 
-Phase 0にはdomain migrationやseed dataはありません。Phase 1以降では `supabase/migrations/` にmigrationを追加し、まずlocal stackで検証してください。
+Phase 1のdomain schemaは `supabase/migrations/` で依存順に管理します。`supabase/seed.sql` はローカル・テスト専用のactive seasonだけを作成し、production seasonを決めるものではありません。
+
+```sh
+npm run db:start
+npm run db:reset
+npm run db:test
+npm run db:lint
+npm run db:types
+```
+
+`db:types` 実行後はgenerated fileの差分を確認してください。空のlocal databaseから `db:reset` を通し、DB testsとlintが成功してからmigrationを共有環境へ適用します。Phase 1のschema契約、RLS permission matrix、transaction boundariesは [`docs/phase-1-data-foundation.md`](./docs/phase-1-data-foundation.md) にあります。
 
 Remote projectを操作するコマンドは明示的な確認後にだけ実行します。特に `db push --linked` や `db reset --linked` を通常のlocal workflowで使わないでください。初回linkにはDashboard URLのproject refが必要です。
 
