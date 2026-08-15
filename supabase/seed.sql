@@ -1,0 +1,2 @@
+-- Phase 0 intentionally contains no product data.
+-- Add deterministic local/test seed data with Phase 1 migrations.

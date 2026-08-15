@@ -1,0 +1,18 @@
+"use client";
+
+export default function ErrorState({
+  reset,
+}: {
+  error: Error & { digest?: string };
+  reset: () => void;
+}) {
+  return (
+    <section className="panel" role="alert">
+      <h1>Something went wrong</h1>
+      <p>Please try again.</p>
+      <button className="button" type="button" onClick={reset}>
+        Try again
+      </button>
+    </section>
+  );
+}

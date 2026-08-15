@@ -1,0 +1,18 @@
+# dependencies and build output
+node_modules/
+.next/
+out/
+coverage/
+*.tsbuildinfo
+
+# local environment values (the documented template remains tracked)
+.env
+.env.*
+!.env.example
+
+# platform and tooling state
+.vercel/
+supabase/.temp/
+supabase/.branches/
+.DS_Store
+npm-debug.log*
