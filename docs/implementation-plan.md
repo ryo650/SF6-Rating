@@ -231,7 +231,7 @@ blind dual reporting、mismatch、forfeit、mutual cancellation、incidentsを�
 Phases 0–4、`result-reporting.md`、`rating-system.md`、`placement.md`、Admin/Dispute境界。
 
 **Data / API changes**
-result report/revision、normalization/comparison、finalization transaction、rating snapshots/history、Elo K=32、rounding、placement multiplier/cap/count、idempotency、active rated gate、5分/30分/24時間nonresponse flowを実装する。
+result report/revision、normalization/comparison、finalization transaction、rating snapshots/history、Elo K=64、rounding、placement multiplier/cap/count、idempotency、active rated gate、5分/30分/24時間nonresponse flowを実装する。
 
 **UI changes**
 You/Opponent orientation、confirmation、blind pending、one-time mismatch revision、result、rating delta、forfeit/cancellation/incident flowsをja/en/mobileで実装する。
