@@ -50,7 +50,7 @@ MVPでは専用の常駐Backend、Redis、専用Matchmaking Serverを導入し�
 
 ## Authentication
 
-Supabase Authを利用する。
+Supabase Authを認証情報、Provider identity、Email verification stateのSource of Truthとして利用する。
 
 MVP必須:
 
@@ -62,7 +62,7 @@ MVP必須:
 
 - X OAuth
 
-認証ユーザーIDを`profiles`と紐づける。認証プロバイダーの秘密情報やパスワードをアプリケーションテーブルへ保存しない。
+認証ユーザーIDを`profiles`と紐づける。認証プロバイダーの秘密情報やパスワードをアプリケーションテーブルへ保存しない。Email / PasswordではEmail verificationを必須とする。MVPでは独自Account Linking UIを作らず、provider identityの扱いはSupabase Authの安全な設定とフローに従う。
 
 ## Hosting
 
@@ -76,7 +76,7 @@ Supabase Storageを利用する。
 - `avatars`: Public bucket
 - 将来disputeの証拠画像を扱う場合: Private bucket
 
-プロフィール画像は公開閲覧可能とするが、アップロード・更新・削除は本人だけに許可する。
+プロフィール画像は公開閲覧可能とするが、アップロード・更新・削除は本人だけに許可する。upload inputはJPEG / PNG / WebPの5 MB以下の静止画だけを許可し、SVG、animated GIF等を拒否する。信頼された処理でdecode、metadata除去、crop / resize、Web向け再encodeを行ってから公開する。
 
 ## External Services
 
@@ -281,12 +281,35 @@ result_reportsへ保存
 ## profiles
 
 - Auth Userに1対1で紐づく
-- ユーザー名、アイコン、地域
-- SF6プレイヤーネーム、SF6ユーザーコード
+- `profiles.id`をimmutable Public User IDとしてProfile URL、Match、Rating History等の永続参照に使う
+- 3〜20文字のUsername、Unicode / case-insensitive normalized value、アイコン、ISO country code
+- Username normalized valueをDatabaseで一意にする
 - 現在レート
 - Placement状態・完了セット数
 - 公開プロフィール情報
 - ユーザー権限
+
+## profile_sf6_identities
+
+- 重複可能なSF6 Player Nameと、canonical identityであるSF6 User Codeを分離する
+- SF6 User Codeは10桁数字へ正規化し、normalized valueをDatabaseで一意にする
+- Owner / AdminとActive Matchの対戦相手だけが参照でき、Public Profile projectionから除外する
+- Active Match中はPlayer Name / User Codeのtrusted updateを拒否する
+
+## profile_private_details / region masters
+
+- Broad Region、Main Character、SF6 Rank、MRをpublic projectionから分離する
+- CountryはISO 3166-1 alpha-2 master、Broad Regionはcountryに紐づくstable codeの管理masterを参照する
+- 日本の初期Broad Regionは北海道、東北、関東、中部、関西、中国・四国、九州・沖縄とする
+- master entryは追加、名称変更、廃止を可能にし、既存参照用codeを表示名変更で変えない
+
+## account deletion / reclaim ledger
+
+- Active Match、unresolved Result、Disputeがある削除要求は`deletion_pending`として保持する
+- pending中は新規Matchmakingを拒否し、既存案件の解消に必要な操作だけを許可する
+- blocker解消後に個人情報を匿名化し、Auth accountを削除するidempotent workflowを使う
+- Match / Rating Historyはimmutable Public User IDへの匿名参照として保持する
+- 生のSF6 User Codeは匿名化時に削除し、Adminだけがreclaim / releaseできるprivate digest ledgerで直後の自動再利用を防ぐ
 
 ## matches
 
@@ -454,7 +477,7 @@ Admin操作もServer側で認証・権限を確認し、可能な範囲で監査
 - SF6-Ratingユーザー名
 - プロフィールアイコン
 - レーティング
-- 地域
+- Country
 - ランキング順位
 - 公開対象の戦績・対戦履歴
 
@@ -463,12 +486,14 @@ Admin操作もServer側で認証・権限を確認し、可能な範囲で監査
 - SF6プレイヤーネーム
 - SF6ユーザーコード
 
-限定公開情報は現在マッチしている相手とAdminだけが確認できる。
+限定公開情報はOwner、現在マッチしている相手、Adminだけが確認できる。
 
 非公開:
 
 - メールアドレス
 - OAuth認証情報
+- Broad Region
+- Main Character、SF6 Rank、MR
 - 制限・不正調査情報
 - disputeの非公開情報
 
@@ -502,7 +527,7 @@ RLS、Server-side Validation、Database Constraints、Atomic Transaction、Rate 
 
 ## Database Protection
 
-- SF6ユーザーコードは原則一意
+- 正規化済み10桁SF6ユーザーコードは一意
 - Result Reportは`Match × User`で重複適用しない
 - Rating Historyは`Match × User`で一意
 - Match確定・レーティング更新は一度だけ
@@ -864,6 +889,16 @@ Current Season中のCompleted Match無効化では、元結果を`result_validit
 ## Decision 14 — Season boundary closes pending Rated Matches
 
 Season終了30分前から新規Rated Matchmakingを停止する。Season終了時点でRating未確定の旧Season Rated Matchは`cancelled + season_boundary_no_rating`で終了する。Dispute / Incidentの監査記録は保持できるが、後からRated結果として復活させず、Soft Reset後のlate deltaを発生させない。
+
+## Decision 15 — Phase 2 identity, onboarding, and deletion boundaries
+
+UsernameとSF6 identityは正規化済み比較値へDatabase uniquenessを適用する一方、すべての永続参照にはimmutable Public User IDを使う。Public Profile、Owner / Admin、Active Match opponentのprojectionを分離し、SF6 identity、Broad Region、character / rank / MRをpublic projectionへ含めない。
+
+Onboardingは各stepを「次へ」でServerへ確定保存し、最終CompletionでProfile公開、Starting Rating、Placement、matching eligibilityを単一のatomic / idempotent domain actionとして確定する。Account deletionはactive dependencyがある間pendingとし、解消後に匿名化とSupabase Auth削除を再試行可能なworkflowで行う。
+
+### Reason
+
+変更可能な表示名と履歴identityを分離し、public / limited / private dataの漏えい、onboardingの部分成功、削除による参照破損を防ぐため。詳細値とAI-owned defaultsは`docs/phase-2-account-onboarding-decisions.md`をSource of Truthとする。
 
 ---
 

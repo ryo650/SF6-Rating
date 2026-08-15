@@ -1,6 +1,6 @@
 # SF6-Rating — MVP Execution Tasks
 
-Status: Ready for Phase 0
+Status: Phase 1 Complete — Ready for Phase 2 Implementation
 Related plan: `docs/implementation-plan.md`
 
 ## 1. Goal and Rules
@@ -15,77 +15,77 @@ MVPを依存関係順に、各Phaseで検証・review可能な単位へ分解す
 
 ### P0-T01 — Runtime and Next.js scaffold
 
-- [ ] **Purpose:** Greenfield repositoryにsupportされたNext.js + TypeScript + App Routerの実行可能な土台を置く。
+- [x] **Purpose:** Greenfield repositoryにsupportされたNext.js + TypeScript + App Routerの実行可能な土台を置く。
 - **Changes:** repository rootをアプリrootとして初期化し、package manager/runtime version、lockfile、scripts、`src/app`、基本configを追加する。実装時点の公式support範囲を確認する。
 - **Done Criteria:** clean install可能で、App Routerの最小pageがlocal serverで表示される。SF6固有Featureやdomain dataはない。
 - **Verification:** fresh install、dev server smoke、runtime/version確認、git diff review。
 
 ### P0-T02 — Code quality configuration
 
-- [ ] **Purpose:** すべての後続Taskで同じ静的品質基準を使えるようにする。
+- [x] **Purpose:** すべての後続Taskで同じ静的品質基準を使えるようにする。
 - **Changes:** lint、format方針、strict TypeScript、`typecheck` script、import/path方針を設定する。
 - **Done Criteria:** source/test/configが一貫して検査対象となり、警告を黙殺するblanket disableがない。
 - **Verification:** lintとtypecheckを実行しpassを記録する。
 
 ### P0-T03 — Test foundation
 
-- [ ] **Purpose:** unit/component/server foundationを自動検証できる最小test harnessを用意する。
+- [x] **Purpose:** unit/component/server foundationを自動検証できる最小test harnessを用意する。
 - **Changes:** Next.js/TypeScriptと互換性のあるtest runner、DOMが必要な場合のenvironment、coverage対象、最小smoke testを追加する。
 - **Done Criteria:** 空の成功ではなく、基本layoutまたはpure utilityを実際に検証するtestがあり、watchなしでCI実行できる。
 - **Verification:** test commandをclean環境で実行しpassを記録する。
 
 ### P0-T04 — Environment contract and secret safety
 
-- [ ] **Purpose:** Local/Preview/Productionの設定境界を明確にし、secret流出を防ぐ。
+- [x] **Purpose:** Local/Preview/Productionの設定境界を明確にし、secret流出を防ぐ。
 - **Changes:** browser公開値とserver-only値を区別した環境変数schema、`.env.example`、`.gitignore`、セットアップ説明を追加する。Supabase URLとPublishable keyを基本接続契約とする。
 - **Done Criteria:** 必須値不足は理解可能なerrorになり、実secret値、service-role key、OAuth secretはtracked fileに存在しない。
 - **Verification:** envあり/なしのtests、tracked filesとdiffのsecret scan、client bundle境界確認。
 
 ### P0-T05 — Supabase client/server foundation
 
-- [ ] **Purpose:** BrowserとServerで適切なsession/cookie境界を持つSupabase接続基盤を作る。
+- [x] **Purpose:** BrowserとServerで適切なsession/cookie境界を持つSupabase接続基盤を作る。
 - **Changes:** browser client、server client、必要最小限のsession refresh/callback foundationを公式推奨方式で追加する。Feature queryやtableは追加しない。
 - **Done Criteria:** client/server用途が分離され、server-only secretをbrowserへ渡さず、公開接続設定で初期化できる。
 - **Verification:** client creation tests、server/client import boundary、local/Preview build、可能なら非破壊のconnection smoke。
 
 ### P0-T06 — Supabase CLI and migration workspace
 
-- [ ] **Purpose:** schemaをGit管理し、Phase 1以降で再現可能に変更できる場所を作る。
+- [x] **Purpose:** schemaをGit管理し、Phase 1以降で再現可能に変更できる場所を作る。
 - **Changes:** Supabase CLI config、migrations/seed置き場、local start/reset/link/pushの安全な説明を追加する。既存remote schemaは変更しない。
 - **Done Criteria:** directory conventionとcommandsが明確で、SF6 domain migrationはまだ存在しない。
 - **Verification:** CLI config validation、file layout review、remoteにmigrationを適用していないことを確認する。
 
 ### P0-T07 — ja/en i18n foundation
 
-- [ ] **Purpose:** 最初から日本語/英語を同じrouting/rendering基盤で扱う。
+- [x] **Purpose:** 最初から日本語/英語を同じrouting/rendering基盤で扱う。
 - **Changes:** locale定義、message loading、default/fallback、locale-aware navigation、最小ja/en messageを追加する。
 - **Done Criteria:** ja/en URLまたは同等の選択契約で基本pageが表示され、unsupported localeを安全に処理し、message key型/検証がある。
 - **Verification:** ja/en render tests、unsupported locale test、browserでlocale切替と直リンクを確認する。
 
 ### P0-T08 — Base layout and generic app states
 
-- [ ] **Purpose:** 後続vertical sliceが再利用できるaccessibile/mobile-first shellを用意する。
+- [x] **Purpose:** 後続vertical sliceが再利用できるaccessibile/mobile-first shellを用意する。
 - **Changes:** metadata、base layout、global styles、generic loading/error/not-found、focus/semantic baselineを追加する。
 - **Done Criteria:** Desktop/Mobileで破綻せず、ja/en表示可能で、SF6固有navigation/Feature UI/仮dataはない。
 - **Verification:** browser Desktop/Mobile、keyboard/focus、loading/error/not-found smoke、snapshot/component tests。
 
 ### P0-T09 — CI quality gate
 
-- [ ] **Purpose:** push/PRごとに最低限の品質低下を自動検知する。
+- [x] **Purpose:** push/PRごとに最低限の品質低下を自動検知する。
 - **Changes:** supported Node/package-manager cacheを使い、install → lint → typecheck → tests → production buildを実行するGitHub Actions workflowを追加する。
 - **Done Criteria:** workflowが再現可能で、secretなしでも基礎checkが走り、必要な公開dummy/test envの扱いが説明される。
 - **Verification:** workflow syntax review、local同等commands、GitHub上の成功run。
 
 ### P0-T10 — Vercel readiness and setup documentation
 
-- [ ] **Purpose:** GitHub連携したVercel Previewへ安全にdeployできる構成と手順を確立する。
+- [x] **Purpose:** GitHub連携したVercel Previewへ安全にdeployできる構成と手順を確立する。
 - **Changes:** framework/build設定、環境変数一覧、Supabase/Vercel/OAuth callbackの環境別注意、local setup/commandsをREADMEまたはdocsへ記載する。
 - **Done Criteria:** repository固有の手動手順が明確で、Previewがproduction secret/dataに暗黙依存しない。
 - **Verification:** production build、Vercel Preview deploy、Preview ja/en smoke、secret exposure review。
 
 ### P0-T11 — Phase 0 completion gate
 
-- [ ] **Purpose:** Feature開発前にProject Foundationを独立して完成させる。
+- [x] **Purpose:** Feature開発前にProject Foundationを独立して完成させる。
 - **Changes:** 実装変更は原則行わず、不足があれば該当Taskへ戻して修正する。
 - **Done Criteria:** local start、lint、typecheck、tests、production build、Supabase client/server foundation、`.env.example`、secret非commit、Vercel Preview、ja/en、CIがすべて確認済みで、SF6固有Featureがない。
 - **Verification:** Self Verification → Independent Review → fixes → Human Reviewを実施し、commands/Preview URL/review findingsを記録する。
@@ -94,28 +94,28 @@ MVPを依存関係順に、各Phaseで検証・review可能な単位へ分解す
 
 ### P1-T01 — Repository and schema contract investigation
 
-- [ ] **Purpose:** Phase 0後の実構成と全Featureのdata責務を再確認する。
+- [x] **Purpose:** Phase 0後の実構成と全Featureのdata責務を再確認する。
 - **Changes:** canonical match terminology、ownership/publicity、transaction boundaries、ERD、migration order、open decisionsを計画へ反映する。
 - **Done Criteria:** tableを無目的に先行作成せず、各fieldのownerとprivacy、Phaseが明確。
 - **Verification:** Feature/Architecture traceability review。
 
 ### P1-T02 — Migration, constraints, indexes, and seed baseline
 
-- [ ] **Purpose:** empty環境から再現可能なDB foundationを作る。
+- [x] **Purpose:** empty環境から再現可能なDB foundationを作る。
 - **Changes:** shared schema、FK/unique/check/index、active season/config seed、generated types workflowを依存順に追加する。
 - **Done Criteria:** local resetとtest fixture作成が再現可能。
 - **Verification:** migrate up/reset、constraint/index inspection、type generation diff。
 
 ### P1-T03 — RLS and trusted domain-action baseline
 
-- [ ] **Purpose:** default-denyとatomic/idempotent mutation patternを確立する。
+- [x] **Purpose:** default-denyとatomic/idempotent mutation patternを確立する。
 - **Changes:** role別policies、public/private projection、server/RPC authorization pattern、transaction test harnessを追加する。
 - **Done Criteria:** guest/user/owner/admin/service境界がpermission matrixと一致。
 - **Verification:** RLS negative/positive integration tests、duplicate/concurrency tests。
 
 ### P1-T04 — Phase 1 gate
 
-- [ ] **Purpose:** Account実装前にdata foundationの整合性を確定する。
+- [x] **Purpose:** Account実装前にdata foundationの整合性を確定する。
 - **Changes:** review findingsのみ修正する。
 - **Done Criteria:** migration/RLS/types/tests/docsがreview済み。
 - **Verification:** Standard Phase Gate。
@@ -124,10 +124,10 @@ MVPを依存関係順に、各Phaseで検証・review可能な単位へ分解す
 
 ### P2-T01 — Resolve Account implementation decisions
 
-- [ ] **Purpose:** normalization、region、avatar、email、deletionのblocking設定を確定する。
-- **Changes:** repository investigationとdecision/spec/config更新。
-- **Done Criteria:** 安全性やdata modelを推測する未決事項が残らない。
-- **Verification:** Product/Architecture/Feature traceability review。
+- [x] **Purpose:** normalization、region、avatar、email、deletionのblocking設定を確定する。
+- **Changes:** `docs/phase-2-account-onboarding-decisions.md`をAcceptedとして追加し、Product / Architecture / Account / Placement / Public Profile / Implementation Planを同期した。Feature code、migration、Auth provider設定は未変更。
+- **Done Criteria:** Phase 2開始を止めるHuman Decisionがなく、残る詳細がAI-owned assumptionまたは後続Featureへ分類されている。
+- **Verification:** Product / Architecture / Feature / Phase 1 contractのtraceability reviewとdocumentation diff。
 
 ### P2-T02 — Auth and profile data/domain slice
 
