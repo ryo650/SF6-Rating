@@ -3,7 +3,7 @@ begin;
 create extension if not exists pgtap with schema extensions;
 set local search_path = public, extensions;
 
-select plan(7);
+select plan(10);
 
 select is(
   (
@@ -97,6 +97,32 @@ select ok(
     'EXECUTE'
   ),
   'the service role can execute the Phase 1 health function'
+);
+
+select is(
+  pg_get_function_result(
+    'private.active_match_profile_projection()'::regprocedure
+  ),
+  'TABLE(match_id uuid, profile_id uuid, username text, avatar_url text)',
+  'the active-match profile helper exposes only its four reviewed projection columns'
+);
+
+select ok(
+  not has_function_privilege(
+    'anon',
+    'private.active_match_profile_projection()',
+    'EXECUTE'
+  ),
+  'anonymous users cannot execute the active-match profile helper'
+);
+
+select ok(
+  has_function_privilege(
+    'authenticated',
+    'private.active_match_profile_projection()',
+    'EXECUTE'
+  ),
+  'authenticated users can execute the guarded helper through the match-room view'
 );
 
 select * from finish();

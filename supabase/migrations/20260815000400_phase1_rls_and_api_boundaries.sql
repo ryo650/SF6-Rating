@@ -89,11 +89,49 @@ as $$
   );
 $$;
 
+create or replace function private.active_match_profile_projection()
+returns table (
+  match_id uuid,
+  profile_id uuid,
+  username text,
+  avatar_url text
+)
+language sql
+stable
+security definer
+set search_path = ''
+as $$
+  select
+    participant.match_id,
+    participant.profile_id,
+    profile.username,
+    profile.avatar_url
+  from public.match_participants as participant
+  join public.matches as match
+    on match.id = participant.match_id
+  join public.profiles as profile
+    on profile.id = participant.profile_id
+  where match.status in ('matched', 'room_setup', 'reporting', 'disputed')
+    and (
+      private.is_admin()
+      or (
+        profile.deleted_at is null
+        and exists (
+          select 1
+          from public.match_participants as viewer
+          where viewer.match_id = match.id
+            and viewer.profile_id = private.current_profile_id()
+        )
+      )
+    );
+$$;
+
 revoke all on function private.current_profile_id() from public;
 revoke all on function private.is_admin() from public;
 revoke all on function private.is_profile_public(uuid) from public;
 revoke all on function private.is_match_participant(uuid) from public;
 revoke all on function private.can_view_active_match_identity(uuid) from public;
+revoke all on function private.active_match_profile_projection() from public;
 
 grant usage on schema private to anon, authenticated, service_role;
 grant execute on function private.current_profile_id() to authenticated, service_role;
@@ -101,6 +139,8 @@ grant execute on function private.is_admin() to authenticated, service_role;
 grant execute on function private.is_profile_public(uuid) to anon, authenticated, service_role;
 grant execute on function private.is_match_participant(uuid) to authenticated, service_role;
 grant execute on function private.can_view_active_match_identity(uuid)
+  to authenticated, service_role;
+grant execute on function private.active_match_profile_projection()
   to authenticated, service_role;
 
 alter table public.rating_parameter_sets enable row level security;
@@ -375,8 +415,9 @@ select
 from public.match_participants as participant
 join public.matches as match
   on match.id = participant.match_id
-join public.profiles as profile
-  on profile.id = participant.profile_id
+join private.active_match_profile_projection() as profile
+  on profile.match_id = participant.match_id
+  and profile.profile_id = participant.profile_id
 join public.profile_sf6_identities as identity
   on identity.profile_id = participant.profile_id
 where match.status in ('matched', 'room_setup', 'reporting', 'disputed');
@@ -385,7 +426,7 @@ comment on view public.public_profiles is
   'Public-only profile projection. Private region, character, auth, SF6 identity, moderation, and pending match data are structurally excluded.';
 
 comment on view public.active_match_private_profiles is
-  'Limited projection for current match participants and admins. Its security-invoker joins preserve all underlying RLS policies.';
+  'Limited projection for current match participants and admins. Profile fields come from a column-limited active-match helper; all other security-invoker joins preserve underlying RLS policies.';
 
 create or replace function public.phase1_database_health()
 returns jsonb

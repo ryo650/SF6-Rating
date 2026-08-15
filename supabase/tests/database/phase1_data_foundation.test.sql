@@ -3,7 +3,7 @@ begin;
 create extension if not exists pgtap with schema extensions;
 set local search_path = public, extensions;
 
-select plan(53);
+select plan(58);
 
 select is(
   (
@@ -158,6 +158,7 @@ insert into public.profiles (
   id,
   username,
   username_normalized,
+  avatar_url,
   country_code,
   current_rating,
   placement_status,
@@ -170,6 +171,7 @@ values
     '00000000-0000-4000-8000-000000000201',
     'PlayerA',
     'playera',
+    null,
     'JP',
     1500,
     'active',
@@ -181,6 +183,7 @@ values
     '00000000-0000-4000-8000-000000000202',
     'PlayerB',
     'playerb',
+    'https://example.test/player-b.png',
     'US',
     1600,
     'completed',
@@ -192,6 +195,7 @@ values
     '00000000-0000-4000-8000-000000000203',
     'PlayerC',
     'playerc',
+    null,
     'JP',
     1400,
     'active',
@@ -201,6 +205,7 @@ values
   ),
   (
     '00000000-0000-4000-8000-000000000204',
+    null,
     null,
     null,
     null,
@@ -829,6 +834,72 @@ select results_eq(
   'active participants can see both limited SF6 identities'
 );
 
+select is(
+  (
+    select to_jsonb(projection)
+    from public.active_match_private_profiles as projection
+    where projection.match_id = '00000000-0000-4000-8000-000000000301'
+      and projection.profile_id = '00000000-0000-4000-8000-000000000202'
+  ),
+  '{
+    "match_id": "00000000-0000-4000-8000-000000000301",
+    "profile_id": "00000000-0000-4000-8000-000000000202",
+    "side": "player_b",
+    "username": "PlayerB",
+    "avatar_url": "https://example.test/player-b.png",
+    "rating_snapshot": 1600,
+    "placement_status_snapshot": "completed",
+    "placement_completed_count_snapshot": 10,
+    "sf6_player_name": "SF6 Player B",
+    "sf6_user_code": "2222-2222-2222",
+    "host_profile_id": "00000000-0000-4000-8000-000000000201",
+    "status": "matched"
+  }'::jsonb,
+  'an active participant can read the public opponents complete match-room projection'
+);
+
+reset role;
+
+update public.profiles
+set is_public = false
+where id = '00000000-0000-4000-8000-000000000202';
+
+set local role authenticated;
+
+select is(
+  (
+    select to_jsonb(projection)
+    from public.active_match_private_profiles as projection
+    where projection.match_id = '00000000-0000-4000-8000-000000000301'
+      and projection.profile_id = '00000000-0000-4000-8000-000000000202'
+  ),
+  '{
+    "match_id": "00000000-0000-4000-8000-000000000301",
+    "profile_id": "00000000-0000-4000-8000-000000000202",
+    "side": "player_b",
+    "username": "PlayerB",
+    "avatar_url": "https://example.test/player-b.png",
+    "rating_snapshot": 1600,
+    "placement_status_snapshot": "completed",
+    "placement_completed_count_snapshot": 10,
+    "sf6_player_name": "SF6 Player B",
+    "sf6_user_code": "2222-2222-2222",
+    "host_profile_id": "00000000-0000-4000-8000-000000000201",
+    "status": "matched"
+  }'::jsonb,
+  'an active participant can read the private opponents limited match-room projection'
+);
+
+select results_eq(
+  $$
+    select count(*)
+    from public.profiles
+    where id = '00000000-0000-4000-8000-000000000202'
+  $$,
+  $$values (0::bigint)$$,
+  'active-opponent access does not expose the private profiles base row or its extra columns'
+);
+
 select results_eq(
   $$select count(*) from public.result_reports$$,
   $$values (1::bigint)$$,
@@ -922,6 +993,16 @@ select set_config(
 );
 set local role authenticated;
 
+select results_eq(
+  $$
+    select count(*)
+    from public.profiles
+    where id = '00000000-0000-4000-8000-000000000202'
+  $$,
+  $$values (1::bigint)$$,
+  'a private profile owner retains direct access to their own base row'
+);
+
 select is(
   (
     select jsonb_build_array(
@@ -955,6 +1036,16 @@ select set_config(
   true
 );
 set local role authenticated;
+
+select results_eq(
+  $$
+    select count(*)
+    from public.profiles
+    where id = '00000000-0000-4000-8000-000000000202'
+  $$,
+  $$values (1::bigint)$$,
+  'an admin retains direct access to private profile base rows'
+);
 
 select results_eq(
   $$select count(*) from public.profile_accounts$$,
