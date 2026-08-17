@@ -154,11 +154,34 @@ values
     statement_timestamp()
   );
 
+create temporary table phase1_provisioned_profile_ids on commit drop as
+select account.profile_id
+from public.profile_accounts as account
+where account.auth_user_id in (
+  '00000000-0000-4000-8000-000000000101',
+  '00000000-0000-4000-8000-000000000102',
+  '00000000-0000-4000-8000-000000000103',
+  '00000000-0000-4000-8000-000000000104'
+);
+
+delete from public.profile_sf6_identities
+where profile_id in (select profile_id from phase1_provisioned_profile_ids);
+
+delete from public.profile_private_details
+where profile_id in (select profile_id from phase1_provisioned_profile_ids);
+
+delete from public.profile_accounts
+where profile_id in (select profile_id from phase1_provisioned_profile_ids);
+
+delete from public.profiles
+where id in (select profile_id from phase1_provisioned_profile_ids);
+
 insert into public.profiles (
   id,
   username,
   username_normalized,
   avatar_url,
+  avatar_source,
   country_code,
   current_rating,
   placement_status,
@@ -172,6 +195,7 @@ values
     'PlayerA',
     'playera',
     null,
+    'default',
     'JP',
     1500,
     'active',
@@ -184,6 +208,7 @@ values
     'PlayerB',
     'playerb',
     'https://example.test/player-b.png',
+    'oauth',
     'US',
     1600,
     'completed',
@@ -196,6 +221,7 @@ values
     'PlayerC',
     'playerc',
     null,
+    'default',
     'JP',
     1400,
     'active',
@@ -208,6 +234,7 @@ values
     null,
     null,
     null,
+    'default',
     null,
     null,
     'not_started',
@@ -273,27 +300,27 @@ values
   (
     '00000000-0000-4000-8000-000000000201',
     'SF6 Player A',
-    '1111-1111-1111',
-    '111111111111'
+    '1111111111',
+    '1111111111'
   ),
   (
     '00000000-0000-4000-8000-000000000202',
     'SF6 Player B',
-    '2222-2222-2222',
-    '222222222222'
+    '2222222222',
+    '2222222222'
   ),
   (
     '00000000-0000-4000-8000-000000000203',
     'SF6 Player C',
-    '3333-3333-3333',
-    '333333333333'
+    '3333333333',
+    '3333333333'
   );
 
 insert into public.profile_private_details (profile_id, broad_region_code)
 values
-  ('00000000-0000-4000-8000-000000000201', 'jp-east'),
-  ('00000000-0000-4000-8000-000000000202', 'us-west'),
-  ('00000000-0000-4000-8000-000000000203', 'jp-west');
+  ('00000000-0000-4000-8000-000000000201', 'JP-KANTO'),
+  ('00000000-0000-4000-8000-000000000202', 'US-ALL'),
+  ('00000000-0000-4000-8000-000000000203', 'JP-KANSAI');
 
 insert into public.matches (
   id,
@@ -609,7 +636,7 @@ values (
   'active',
   1,
   'JP',
-  'jp-west',
+  'JP-KANSAI',
   statement_timestamp(),
   statement_timestamp() + interval '10 minutes'
 );
@@ -636,7 +663,7 @@ select throws_ok(
       'completed',
       0,
       'US',
-      'us-west',
+      'US-ALL',
       statement_timestamp(),
       statement_timestamp() + interval '10 minutes'
     )
@@ -851,7 +878,7 @@ select is(
     "placement_status_snapshot": "completed",
     "placement_completed_count_snapshot": 10,
     "sf6_player_name": "SF6 Player B",
-    "sf6_user_code": "2222-2222-2222",
+    "sf6_user_code": "2222222222",
     "host_profile_id": "00000000-0000-4000-8000-000000000201",
     "status": "matched"
   }'::jsonb,
@@ -883,7 +910,7 @@ select is(
     "placement_status_snapshot": "completed",
     "placement_completed_count_snapshot": 10,
     "sf6_player_name": "SF6 Player B",
-    "sf6_user_code": "2222-2222-2222",
+    "sf6_user_code": "2222222222",
     "host_profile_id": "00000000-0000-4000-8000-000000000201",
     "status": "matched"
   }'::jsonb,
