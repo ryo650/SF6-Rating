@@ -1,7 +1,8 @@
 # Phase 2 — Account & Onboarding Decision Record
 
-Status: Accepted
-Date: 2026-08-15
+Status: Accepted — Finalized for Implementation Planning
+Decision date: 2026-08-15
+Finalization audit: 2026-08-17
 Scope: Phase 2 implementation contract; no feature code, migration, or Auth provider configuration is included
 
 ## 1. Decision
@@ -127,11 +128,26 @@ Phase 1は後続Featureのためのnullable schema、RLS、public/private projec
 10. 削除後のUsernameは匿名化完了後に再利用可能とする。過去履歴とURLはimmutable Public User IDにより旧所有者へ誤接続しない。
 11. Country / Broad Region変更自体にMVPのcooldownは設けない。待機中の変更反映とsnapshot整合性はPhase 3で扱い、Active Matchの既存snapshotを書き換えない。
 
-## 6. Blocking questions
+## 6. Remaining question classification
 
-Phase 2の機能実装開始を止めるHuman Decisionは残っていない。
+### Blocking Human Decision
 
-Google / Discord credentials、redirect URL、Email delivery等のenvironment configurationは統合検証前に必要だが、Product Decisionではなく実装・運用準備事項である。本Decision作業では設定変更を行わない。
+なし。Phase 2の機能実装開始を止めるProduct / Architecture / UX Decisionは残っていない。
+
+Google / Discord credentials、redirect URL、Email delivery等のenvironment configurationは統合検証前に必要だが、未解決DecisionではなくHuman Action Pointである。本Decision作業では設定変更を行わない。
+
+### Non-blocking AI-owned Assumption
+
+§5の11項目を実装defaultとして扱う。Unicode data / image processing libraryのversion、pixel上限、password policy、application rate-limit値等は、実装時点のsupport / security検証に基づいて固定し、testsとimplementation evidenceへ記録する。Product intentを変えない範囲では追加Human Decisionを要求しない。
+
+### Future / Out of Scope
+
+- Waiting中のRegion変更反映とsnapshot整合性はPhase 3で扱う。
+- Active Match Roomのidentity表示UIはPhase 4で扱い、Phase 2はread projectionと変更禁止gateを保証する。
+- Public Match / Rating History、pagination、Username searchはPhase 6で扱う。
+- Admin reclaim / moderation / legal-hold UIはPhase 8で扱い、Phase 2はprivate ledgerとAdmin-only server boundaryを用意する。
+- Production rate-limit tuning、CAPTCHA、scheduled reconciliation、monitoring / alertingはPhase 9で扱う。
+- Custom Account Linking UI、X login、公式SF6 identity verification、OAuth avatar継続同期、animated avatarはMVP対象外とする。
 
 ## 7. Expected impact
 
@@ -173,4 +189,6 @@ Google / Discord credentials、redirect URL、Email delivery等のenvironment co
 
 ## 11. Result
 
-DecisionはFeature Specs、Architecture、Implementation Planへ反映済み。Phase 2の機能実装は未着手であり、migrationとAuth provider設定も変更していない。
+DecisionはFeature Specs、Architecture、Implementation Planへ反映済み。2026-08-17の最終監査で仕様間にPhase 2着手を妨げる矛盾がなく、Blocking Human Decisionが0件であることを確認した。詳細実装順と検証契約は`docs/phase-2-account-onboarding-implementation-plan.md`および`docs/phase-2-account-onboarding-tasks.md`をSource of Truthとする。
+
+Phase 2の機能実装は未着手であり、migration、hosted Supabase、Auth provider、Production設定も変更していない。

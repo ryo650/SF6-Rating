@@ -127,28 +127,35 @@ MVPを依存関係順に、各Phaseで検証・review可能な単位へ分解す
 - [x] **Purpose:** normalization、region、avatar、email、deletionのblocking設定を確定する。
 - **Changes:** `docs/phase-2-account-onboarding-decisions.md`をAcceptedとして追加し、Product / Architecture / Account / Placement / Public Profile / Implementation Planを同期した。Feature code、migration、Auth provider設定は未変更。
 - **Done Criteria:** Phase 2開始を止めるHuman Decisionがなく、残る詳細がAI-owned assumptionまたは後続Featureへ分類されている。
-- **Verification:** Product / Architecture / Feature / Phase 1 contractのtraceability reviewとdocumentation diff。
+- **Verification:** Product / Architecture / Feature / Phase 1 contractのtraceability reviewとdocumentation diff。2026-08-17の最終監査でBlocking Human Decision 0を確認済み。
 
-### P2-T02 — Auth and profile data/domain slice
+### P2-T02 — Execute DB / Auth foundation and Authentication Flow
 
-- [ ] **Purpose:** 必須authと安全なprofile lifecycleを実装する。
-- **Changes:** Google/Discord/Email、profile/SF6 identity、RLS、Storage、trusted mutations、deletion/anonymization boundary。
-- **Done Criteria:** auth userから一意で権限適合したprofileを作成・復元・更新できる。
-- **Verification:** auth/permission/validation/integration tests。
+- [ ] **Purpose:** 必須authと安全なprofile lifecycleの共通基盤を実装する。
+- **Changes:** 詳細Tasks P2.1〜P2.2。forward schema / masters、Auth provisioning、normalization、RLS / Storage、Google / Discord / Email、verification / reset、callback / session。
+- **Done Criteria:** auth userから一意で権限適合したProfileを作成・復元でき、全必須Auth flowが共通callback contractを使う。
+- **Verification:** `docs/phase-2-account-onboarding-tasks.md`のP2.1 / P2.2 Done Criteria。
 
-### P2-T03 — Onboarding and profile UI slice
+### P2-T03 — Execute three-step onboarding slices
 
-- [ ] **Purpose:** 3-step onboardingと編集をmobile-firstのja/enで完成させる。
-- **Changes:** auth screens、resume、validation、avatar、profile/edit states、placement initialization。
-- **Done Criteria:** Feature acceptance criteriaを満たすend-to-end flowがある。
-- **Verification:** provider別browser tests、mobile/desktop、error/reload。
+- [ ] **Purpose:** Account、SF6 Player Info、Rating Setupをstep保存とatomic completionまで完成させる。
+- **Changes:** 詳細Tasks P2.3〜P2.5。Username / Avatar、SF6 identity / Region、MR / Starting Rating / Placement initialization、resume。
+- **Done Criteria:** Feature acceptance criteriaを満たし、retry / concurrencyでも1回だけ一貫してcompletionするend-to-end flowがある。
+- **Verification:** `docs/phase-2-account-onboarding-tasks.md`のP2.3〜P2.5 Done Criteria。
 
-### P2-T04 — Phase 2 gate
+### P2-T04 — Execute Profile editing and deletion slices
+
+- [ ] **Purpose:** Onboarding後のowner-controlled lifecycleを完成させる。
+- **Changes:** 詳細Tasks P2.6〜P2.7。Avatar / Profile edit、cooldown / Active Match gate、deletion pending、anonymization、Auth deletion / retry。
+- **Done Criteria:** private / public境界を保ち、active dependencyを壊さず、historyを匿名参照で保持できる。
+- **Verification:** `docs/phase-2-account-onboarding-tasks.md`のP2.6〜P2.7 Done Criteria。
+
+### P2-T05 — Phase 2 integration and review gate
 
 - [ ] **Purpose:** Account sliceを完成させる。
-- **Changes:** review fixes。
-- **Done Criteria:** onboarding完了userがmatching eligibilityを持つ。
-- **Verification:** Standard Phase Gate。
+- **Changes:** 詳細Tasks P2.8。Self Verification、Auth / Preview verification、Independent Review、AI-fixable Critical / Important fixes、再検証。
+- **Done Criteria:** onboarding完了userがmatching eligibilityを持ち、High-risk領域の未解決Critical / Importantがない。
+- **Verification:** `docs/phase-2-account-onboarding-tasks.md`のP2.8 Done CriteriaとStandard Phase Gate。
 
 ## 5. Phase 3 — Matchmaking
 

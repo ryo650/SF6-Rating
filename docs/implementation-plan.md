@@ -148,6 +148,9 @@ schema reviewとpermission testsがpassし、Account/Profileのblocking Open Que
 
 ### Phase 2 — Account & Onboarding
 
+Detailed plan: `docs/phase-2-account-onboarding-implementation-plan.md`
+Detailed tasks: `docs/phase-2-account-onboarding-tasks.md`
+
 **Goal**
 Google、Discord、Email/Password認証と3-step onboardingを通じて、matching可能なProfileとPlacement開始状態を作る。
 
@@ -163,11 +166,22 @@ Google / Discord / verified Email + Password、email verification/reset、3-step
 **Security changes**
 owner/admin/public/active-opponent境界、private fields、Storage policy、OAuth callback、rate limit、Active Match中のPlayer Name / User Code変更gate、deletion pending gate、User Code reclaim権限を検証する。
 
+**Dependency-ordered slices**
+
+1. DB / Auth Foundation
+2. Authentication Flow
+3. Onboarding Step 1: Account
+4. Onboarding Step 2: SF6 Player Info
+5. Onboarding Step 3 + Placement Initialization
+6. Avatar and Profile Editing
+7. Account Deletion and Anonymization
+8. Integration, Security, and UX Verification
+
 **Risks / mitigation**
 Unicode confusableはNFKC + case foldingとAdmin moderationで扱う。Avatar decodeは5 MB byte上限に加えpixel/decode上限とserver re-encodeで保護する。Account deletionはstate machine、idempotency receipt、retry、private reclaim ledgerで部分失敗とUser Code即時再利用を防ぐ。OAuth secretは環境管理する。
 
 **Verification / Completion Gate**
-全必須auth方式、途中再開、step単位保存、atomic completion、Unicode / User Code unique conflict、入力境界、owner/public/active-opponent visibility、Active Match identity gate、region master、avatar形式/容量/加工、MR 1〜5000、placement初期化、mobile UX、pending deletion / anonymization / reclaim safetyをFeature acceptance criteriaと統合testで確認し、Standard Phase Gateを完了する。
+全必須auth方式、途中再開、step単位保存、atomic completion、Unicode / User Code unique conflict、入力境界、owner/public/active-opponent visibility、Active Match identity gate、region master、avatar形式/容量/加工、MR 1〜5000、placement初期化、mobile UX、pending deletion / anonymization / reclaim safetyをFeature acceptance criteriaと統合testで確認する。Auth、RLS、Account deletion、SF6 Identity、onboarding completion transactionをHigh-riskとして、`Implementation → Self Verification → Independent Review → AI-fixable Critical/Important fixes → Re-verification`を完了する。
 
 **Proceed to Phase 3 when**
 onboarding完了ユーザーが一貫したmatching eligibilityを持ち、認証/公開範囲のHigh issueがない。
@@ -378,4 +392,4 @@ Phase 2を開始できないOpen Questionはない。以下は該当PhaseのRepo
 
 設定可能なnon-blocking assumptionは初期値と検証方法を明示して進められる。Feature contract、security、data integrity、不可逆な運用を変える未決事項は該当Phaseのblocking questionとして解決する。
 
-Phase 2の具体値、Closed Questions、AI-owned assumptionsは`docs/phase-2-account-onboarding-decisions.md`に記録した。Google / Discord credentials、redirect URL、Email delivery等は統合検証前のenvironment prerequisiteであり、未解決Product Decisionではない。
+Phase 2の具体値、Closed Questions、AI-owned assumptions、Future / Out of Scopeは`docs/phase-2-account-onboarding-decisions.md`に記録した。詳細な実装順、Human Action Points、High-risk verificationは`docs/phase-2-account-onboarding-implementation-plan.md`に記録した。Google / Discord credentials、redirect URL、Email delivery等は統合検証前のenvironment prerequisiteであり、未解決Product Decisionではない。
