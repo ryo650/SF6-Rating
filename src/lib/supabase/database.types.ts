@@ -128,6 +128,122 @@ export type Database = {
           },
         ];
       };
+      avatar_assets: {
+        Row: {
+          byte_size: number;
+          content_sha256: string;
+          content_type: string;
+          created_at: string;
+          deleted_at: string | null;
+          height: number;
+          id: string;
+          profile_id: string;
+          storage_path: string;
+          width: number;
+        };
+        Insert: {
+          byte_size: number;
+          content_sha256: string;
+          content_type: string;
+          created_at?: string;
+          deleted_at?: string | null;
+          height: number;
+          id?: string;
+          profile_id: string;
+          storage_path: string;
+          width: number;
+        };
+        Update: {
+          byte_size?: number;
+          content_sha256?: string;
+          content_type?: string;
+          created_at?: string;
+          deleted_at?: string | null;
+          height?: number;
+          id?: string;
+          profile_id?: string;
+          storage_path?: string;
+          width?: number;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "avatar_assets_profile_id_fkey";
+            columns: ["profile_id"];
+            isOneToOne: false;
+            referencedRelation: "profiles";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "avatar_assets_profile_id_fkey";
+            columns: ["profile_id"];
+            isOneToOne: false;
+            referencedRelation: "public_profiles";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      broad_regions: {
+        Row: {
+          code: string;
+          country_code: string;
+          created_at: string;
+          is_active: boolean;
+          name_en: string;
+          name_ja: string;
+          sort_order: number;
+          updated_at: string;
+        };
+        Insert: {
+          code: string;
+          country_code: string;
+          created_at?: string;
+          is_active?: boolean;
+          name_en: string;
+          name_ja: string;
+          sort_order?: number;
+          updated_at?: string;
+        };
+        Update: {
+          code?: string;
+          country_code?: string;
+          created_at?: string;
+          is_active?: boolean;
+          name_en?: string;
+          name_ja?: string;
+          sort_order?: number;
+          updated_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "broad_regions_country_code_fkey";
+            columns: ["country_code"];
+            isOneToOne: false;
+            referencedRelation: "countries";
+            referencedColumns: ["code"];
+          },
+        ];
+      };
+      countries: {
+        Row: {
+          code: string;
+          created_at: string;
+          is_active: boolean;
+          updated_at: string;
+        };
+        Insert: {
+          code: string;
+          created_at?: string;
+          is_active?: boolean;
+          updated_at?: string;
+        };
+        Update: {
+          code?: string;
+          created_at?: string;
+          is_active?: boolean;
+          updated_at?: string;
+        };
+        Relationships: [];
+      };
       disputes: {
         Row: {
           assigned_admin_profile_id: string | null;
@@ -843,6 +959,13 @@ export type Database = {
         };
         Relationships: [
           {
+            foreignKeyName: "profile_private_details_character_master_fk";
+            columns: ["main_character_code"];
+            isOneToOne: false;
+            referencedRelation: "sf6_characters";
+            referencedColumns: ["code"];
+          },
+          {
             foreignKeyName: "profile_private_details_profile_id_fkey";
             columns: ["profile_id"];
             isOneToOne: true;
@@ -856,6 +979,13 @@ export type Database = {
             referencedRelation: "public_profiles";
             referencedColumns: ["id"];
           },
+          {
+            foreignKeyName: "profile_private_details_region_master_fk";
+            columns: ["broad_region_code"];
+            isOneToOne: false;
+            referencedRelation: "broad_regions";
+            referencedColumns: ["code"];
+          },
         ];
       };
       profile_sf6_identities: {
@@ -864,6 +994,7 @@ export type Database = {
           sf6_player_name: string | null;
           sf6_user_code: string | null;
           sf6_user_code_changed_at: string | null;
+          sf6_user_code_digest: string | null;
           sf6_user_code_normalized: string | null;
           updated_at: string;
         };
@@ -872,6 +1003,7 @@ export type Database = {
           sf6_player_name?: string | null;
           sf6_user_code?: string | null;
           sf6_user_code_changed_at?: string | null;
+          sf6_user_code_digest?: string | null;
           sf6_user_code_normalized?: string | null;
           updated_at?: string;
         };
@@ -880,6 +1012,7 @@ export type Database = {
           sf6_player_name?: string | null;
           sf6_user_code?: string | null;
           sf6_user_code_changed_at?: string | null;
+          sf6_user_code_digest?: string | null;
           sf6_user_code_normalized?: string | null;
           updated_at?: string;
         };
@@ -902,6 +1035,8 @@ export type Database = {
       };
       profiles: {
         Row: {
+          avatar_asset_id: string | null;
+          avatar_source: Database["public"]["Enums"]["avatar_source_type"];
           avatar_url: string | null;
           country_code: string | null;
           created_at: string;
@@ -918,6 +1053,8 @@ export type Database = {
           username_normalized: string | null;
         };
         Insert: {
+          avatar_asset_id?: string | null;
+          avatar_source?: Database["public"]["Enums"]["avatar_source_type"];
           avatar_url?: string | null;
           country_code?: string | null;
           created_at?: string;
@@ -934,6 +1071,8 @@ export type Database = {
           username_normalized?: string | null;
         };
         Update: {
+          avatar_asset_id?: string | null;
+          avatar_source?: Database["public"]["Enums"]["avatar_source_type"];
           avatar_url?: string | null;
           country_code?: string | null;
           created_at?: string;
@@ -949,7 +1088,22 @@ export type Database = {
           username?: string | null;
           username_normalized?: string | null;
         };
-        Relationships: [];
+        Relationships: [
+          {
+            foreignKeyName: "profiles_avatar_asset_id_fkey";
+            columns: ["avatar_asset_id"];
+            isOneToOne: false;
+            referencedRelation: "avatar_assets";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "profiles_country_master_fk";
+            columns: ["country_code"];
+            isOneToOne: false;
+            referencedRelation: "countries";
+            referencedColumns: ["code"];
+          },
+        ];
       };
       rated_pair_cooldowns: {
         Row: {
@@ -1605,6 +1759,33 @@ export type Database = {
         };
         Relationships: [];
       };
+      sf6_characters: {
+        Row: {
+          code: string;
+          created_at: string;
+          is_active: boolean;
+          name: string;
+          sort_order: number;
+          updated_at: string;
+        };
+        Insert: {
+          code: string;
+          created_at?: string;
+          is_active?: boolean;
+          name: string;
+          sort_order: number;
+          updated_at?: string;
+        };
+        Update: {
+          code?: string;
+          created_at?: string;
+          is_active?: boolean;
+          name?: string;
+          sort_order?: number;
+          updated_at?: string;
+        };
+        Relationships: [];
+      };
       starting_rating_parameter_sets: {
         Row: {
           created_at: string;
@@ -1904,16 +2085,186 @@ export type Database = {
           updated_at?: string | null;
           username?: string | null;
         };
-        Relationships: [];
+        Relationships: [
+          {
+            foreignKeyName: "profiles_country_master_fk";
+            columns: ["country_code"];
+            isOneToOne: false;
+            referencedRelation: "countries";
+            referencedColumns: ["code"];
+          },
+        ];
       };
     };
     Functions: {
       phase1_database_health: { Args: never; Returns: Json };
+      phase2_attach_avatar: {
+        Args: {
+          requested_actor_auth_user_id: string;
+          requested_byte_size: number;
+          requested_content_sha256: string;
+          requested_hash: string;
+          requested_height: number;
+          requested_idempotency_key: string;
+          requested_public_url: string;
+          requested_storage_path: string;
+          requested_width: number;
+        };
+        Returns: Json;
+      };
+      phase2_avatar_cleanup_paths: {
+        Args: { requested_actor_auth_user_id: string };
+        Returns: string[];
+      };
+      phase2_complete_onboarding: {
+        Args: {
+          requested_actor_auth_user_id: string;
+          requested_character_code: string;
+          requested_hash: string;
+          requested_idempotency_key: string;
+          requested_master_rating: number;
+          requested_preview_parameter_version: string;
+          requested_rank: Database["public"]["Enums"]["sf6_rank"];
+          requested_rank_tier: number;
+        };
+        Returns: Json;
+      };
+      phase2_detach_avatar: {
+        Args: {
+          requested_actor_auth_user_id: string;
+          requested_hash: string;
+          requested_idempotency_key: string;
+        };
+        Returns: Json;
+      };
+      phase2_detach_avatars_for_deletion: {
+        Args: { requested_actor_auth_user_id: string };
+        Returns: string[];
+      };
+      phase2_mark_auth_deletion_complete: {
+        Args: { requested_job_id: string };
+        Returns: Json;
+      };
+      phase2_mark_auth_deletion_failed: {
+        Args: { requested_error_code: string; requested_job_id: string };
+        Returns: Json;
+      };
+      phase2_onboarding_state: {
+        Args: { requested_actor_auth_user_id: string };
+        Returns: Json;
+      };
+      phase2_prepare_account_anonymization: {
+        Args: {
+          requested_actor_auth_user_id: string;
+          requested_hash: string;
+          requested_idempotency_key: string;
+          requested_user_code_digest: string;
+        };
+        Returns: Json;
+      };
+      phase2_preview_starting_rating: {
+        Args: {
+          requested_actor_auth_user_id: string;
+          requested_character_code: string;
+          requested_master_rating: number;
+          requested_rank: Database["public"]["Enums"]["sf6_rank"];
+          requested_rank_tier: number;
+        };
+        Returns: Json;
+      };
+      phase2_release_deleted_user_code: {
+        Args: {
+          requested_actor_auth_user_id: string;
+          requested_code_digest: string;
+          requested_hash: string;
+          requested_idempotency_key: string;
+          requested_reason: string;
+        };
+        Returns: Json;
+      };
+      phase2_request_account_deletion: {
+        Args: {
+          requested_actor_auth_user_id: string;
+          requested_hash: string;
+          requested_idempotency_key: string;
+        };
+        Returns: Json;
+      };
+      phase2_retryable_auth_deletion_job: {
+        Args: { requested_profile_id: string };
+        Returns: Json;
+      };
+      phase2_save_account_step: {
+        Args: {
+          requested_actor_auth_user_id: string;
+          requested_avatar_source?: Database["public"]["Enums"]["avatar_source_type"];
+          requested_byte_size?: number;
+          requested_content_sha256?: string;
+          requested_hash: string;
+          requested_height?: number;
+          requested_idempotency_key: string;
+          requested_public_url?: string;
+          requested_storage_path?: string;
+          requested_username: string;
+          requested_username_normalized: string;
+          requested_width?: number;
+        };
+        Returns: Json;
+      };
+      phase2_save_sf6_info_step: {
+        Args: {
+          requested_actor_auth_user_id: string;
+          requested_broad_region_code: string;
+          requested_country_code: string;
+          requested_hash: string;
+          requested_idempotency_key: string;
+          requested_player_name: string;
+          requested_user_code: string;
+          requested_user_code_digest: string;
+        };
+        Returns: Json;
+      };
+      phase2_update_profile_details: {
+        Args: {
+          requested_actor_auth_user_id: string;
+          requested_broad_region_code: string;
+          requested_character_code: string;
+          requested_country_code: string;
+          requested_hash: string;
+          requested_idempotency_key: string;
+          requested_master_rating: number;
+          requested_rank: Database["public"]["Enums"]["sf6_rank"];
+          requested_rank_tier: number;
+        };
+        Returns: Json;
+      };
+      phase2_update_sf6_identity: {
+        Args: {
+          requested_actor_auth_user_id: string;
+          requested_hash: string;
+          requested_idempotency_key: string;
+          requested_player_name: string;
+          requested_user_code: string;
+          requested_user_code_digest: string;
+        };
+        Returns: Json;
+      };
+      phase2_update_username: {
+        Args: {
+          requested_actor_auth_user_id: string;
+          requested_hash: string;
+          requested_idempotency_key: string;
+          requested_username: string;
+          requested_username_normalized: string;
+        };
+        Returns: Json;
+      };
     };
     Enums: {
       account_status:
         "onboarding" | "active" | "deletion_pending" | "anonymized";
       application_role: "user" | "admin";
+      avatar_source_type: "default" | "oauth" | "upload";
       dispute_entry_reason:
         | "result_mismatch"
         | "incident_conflict"
@@ -2143,6 +2494,7 @@ export const Constants = {
         "anonymized",
       ],
       application_role: ["user", "admin"],
+      avatar_source_type: ["default", "oauth", "upload"],
       dispute_entry_reason: [
         "result_mismatch",
         "incident_conflict",

@@ -144,7 +144,7 @@ SF6プレイヤーネームとSF6ユーザーコードはMatch成立後に初め
 - SF6プレイヤーネームとSF6ユーザーコードは、そのMatchの参加者2名とAdminだけが閲覧できる。
 - Rated Match成立前のMatchmaking候補一覧には表示しない。
 - Matchが `completed`、`cancelled`、または運営処理で終了した後は、「現在の対戦相手への限定公開」として取得できないようにする。
-- 一般公開プロフィール、公開対戦履歴、分析イベントへSF6ユーザーコードを含めない。
+- 一般公開プロフィール、公開対戦履歴、分析イベントへSF6プレイヤーネームとSF6ユーザーコードを含めない。
 
 ## FR-04 Host Assignment
 
@@ -454,7 +454,7 @@ Active Matchへの常設導線を表示し、新規Matchmaking操作を無効化
 
 ## Profile Information Changes During Active Match
 
-Match成立時Snapshotと、合流に必要な有効SF6情報のどちらを表示するかを一貫させる。MVPではActive Match中のSF6プレイヤーネーム / ユーザーコード変更を禁止する案を第一候補とする。
+`matched | room_setup | reporting | disputed`のActive Match中はSF6プレイヤーネームとSF6ユーザーコードの変更を禁止し、Match Roomが参照する合流情報を一貫させる。Matchが`completed | cancelled`になった後に変更できる。
 
 ## Account Becomes Restricted During Active Match
 
@@ -674,7 +674,7 @@ No-show / cancellationの詳細データと判定はDispute / Admin Feature Spec
 ## Security
 
 - Match Room詳細は参加者2名とAdminだけが閲覧できる。
-- SF6ユーザーコードを公開Profile、公開History、候補一覧、分析へ漏らさない。
+- SF6プレイヤーネームとSF6ユーザーコードを公開Profile、公開History、候補一覧、分析へ漏らさない。
 - Host変更、定型メッセージ、状態遷移をServer側で検証する。
 - Clientが任意のActor、Host、Match status、Timestampを送って確定できない。
 - 定型メッセージとHost変更へ通常利用を妨げないRate Limitを適用する。
@@ -735,7 +735,7 @@ No-show / cancellationの詳細データと判定はDispute / Admin Feature Spec
 - [ ] 非参加者とGuestがMatch Room詳細を取得できない
 - [ ] Adminが運営権限の範囲でMatch Room詳細を確認できる
 - [ ] Match終了後、相手のSF6ユーザーコードを「現在の対戦相手」向けAPIから取得できない
-- [ ] 一般公開Profile、History、AnalyticsにSF6ユーザーコードが含まれない
+- [ ] 一般公開Profile、History、AnalyticsにSF6プレイヤーネームとSF6ユーザーコードが含まれない
 
 ## Host and Guidance
 
@@ -876,15 +876,11 @@ Rated Matchは`disputed`の間もActive Rated Match Gateを維持する。Admin 
 
 MVPではActive Matchに必要なeventsを取得し、表示件数に上限を設ける。
 
-## OQ-03 Active Match Profile Changes
+## Resolved — Active Match Profile Changes
 
-**Open Question — Low Impact**
+**[Resolved by Phase 2 Decision]**
 
-- Active Match中のSF6プレイヤーネーム変更を禁止するか
-- Active Match中のSF6ユーザーコード変更を禁止するか
-- Match成立時Snapshotと現在値のどちらを合流情報に使うか
-
-MVPでは対戦中の合流情報不整合を避けるため、Active Match中は該当情報を変更不可とする案を第一候補とする。
+`matched | room_setup | reporting | disputed`のActive Match中はSF6プレイヤーネームとSF6ユーザーコードの変更を禁止する。Match RoomはActive Match中に許可されたidentity projectionを参照し、`completed | cancelled`後に対戦相手限定公開を終了する。
 
 ## OQ-04 Host Assignment Algorithm
 

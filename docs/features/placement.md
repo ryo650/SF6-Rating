@@ -1,8 +1,9 @@
 # Placement — Feature Spec
 
-Status: Draft  
-Product: SF6-Rating  
+Status: Reviewed — Phase 2 Decisions Formalized
+Product: SF6-Rating
 Feature: Placement
+Related Decision: `docs/phase-2-account-onboarding-decisions.md`
 
 ---
 
@@ -197,8 +198,10 @@ Player B -46
 
 ## Requirement 11 — Master MR Validation
 
-- **[Assumption / Needs Validation]** Master MRは自己申告のため、明らかな入力ミスや異常値を防ぐ妥当性Validationを設ける
-- 具体的な許容範囲はコードへ固定せず設定可能にする
+- **[Confirmed]** Master MRは自己申告とする
+- **[Confirmed]** 明らかな入力ミスや異常値を防ぐsanity validation rangeをversioned / configurableにする
+- **[Confirmed]** MVP初期値は1〜5000（inclusive）とする
+- 範囲外はWarningだけで通さずvalidation errorとし、Starting Ratingを確定しない
 - SF6側のMR環境が変化した場合、設定変更で対応できるようにする
 - MVPではSF6 APIによる所有確認やMR自動取得を必須にしない
 
@@ -263,6 +266,7 @@ Player B -46
 17. **[Confirmed]** 最初のRated Match成立後はユーザー自身によるStarting Rating修正やPlacementやり直しを認めない
 18. **[Derived Technical Decision]** Placement計算と進行更新は信頼されたサーバー / DB処理だけが行う
 19. **[Confirmed]** 後からMatchを無効化してもPlacement進行を巻き戻さずCompensating Correctionを使う
+20. **[Confirmed]** Master MR sanity validationは設定可能とし、MVP初期値1〜5000（inclusive）を使う
 
 ---
 
@@ -347,7 +351,7 @@ Starting Rating Preview中なら入力を修正し、Starting Ratingを再算出
 
 ## Invalid Master MR
 
-Validationエラーを表示し、Starting Ratingを確定しない。許容範囲は設定値から判定する。
+設定値（MVP初期値1〜5000 inclusive）から判定し、範囲外はValidationエラーを表示してStarting Ratingを確定しない。
 
 ## Master Formula Below or Above Bounds
 
@@ -622,6 +626,7 @@ DB状態へ同期し、同一Matchを複数回Placement進行へ加算しない�
 - [ ] DiamondのBase Ratingが1650になる
 - [ ] Subrank 1〜5へ`-40 / -20 / 0 / +20 / +40`が適用される
 - [ ] Masterへ`1850 + 0.75 × (MR - 1500)`が適用される
+- [ ] Master MR 1〜5000（inclusive）を受け付け、範囲外をValidation errorにする
 - [ ] Master Starting Ratingが1800未満にならない
 - [ ] Master Starting Ratingが2200を超えない
 - [ ] Starting Rating BoundsがPlacement後のCurrent Ratingを制限しない
@@ -700,15 +705,11 @@ DB状態へ同期し、同一Matchを複数回Placement進行へ加算しない�
 
 現時点でPlacement実装を停止するBlockerはない。
 
-## OQ-01 Master MR Validation Range
+## Resolved — Master MR Validation Range
 
-**[Open Question — Non-blocking / Configuration]**
+**[Resolved by Phase 2 Decision]**
 
-- Master MR入力の具体的な最小値・最大値
-- SF6側のMR制度変更時の更新方法
-- 入力範囲外をErrorにするかWarning付きで修正させるか
-
-MVPでは設定可能な合理的範囲を仮置きする。Starting Rating自体は1800〜2200へClampされる。
+Master MRは自己申告とし、versioned / configurableなsanity rangeを使う。MVP初期値は1〜5000（inclusive）で、範囲外はValidation errorとしてStarting Ratingを確定しない。Starting Rating自体は既存式に従い1800〜2200へClampする。
 
 ## OQ-02 Placement Formula Validation
 

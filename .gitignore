@@ -3,6 +3,8 @@ node_modules/
 .next/
 out/
 coverage/
+playwright-report/
+test-results/
 *.tsbuildinfo
 
 # local environment values (the documented template remains tracked)
