@@ -110,11 +110,11 @@ select is(
   'Avatar bucket accepts only the approved input MIME types'
 );
 select ok(
-  not has_function_privilege('authenticated', 'public.phase2_complete_onboarding(uuid,text,public.sf6_rank,smallint,integer,text,text)', 'EXECUTE'),
+  not has_function_privilege('authenticated', 'public.phase2_complete_onboarding(uuid,text,public.sf6_rank,smallint,integer,text,text,text)', 'EXECUTE'),
   'authenticated browser role cannot execute trusted completion RPC'
 );
 select ok(
-  has_function_privilege('service_role', 'public.phase2_complete_onboarding(uuid,text,public.sf6_rank,smallint,integer,text,text)', 'EXECUTE'),
+  has_function_privilege('service_role', 'public.phase2_complete_onboarding(uuid,text,public.sf6_rank,smallint,integer,text,text,text)', 'EXECUTE'),
   'service role can execute trusted completion RPC'
 );
 select is(
@@ -125,4 +125,3 @@ select is(
 
 select * from finish();
 rollback;
-

@@ -181,7 +181,6 @@ insert into public.profiles (
   username,
   username_normalized,
   avatar_url,
-  avatar_source,
   country_code,
   current_rating,
   placement_status,
@@ -195,7 +194,6 @@ values
     'PlayerA',
     'playera',
     null,
-    'default',
     'JP',
     1500,
     'active',
@@ -207,8 +205,7 @@ values
     '00000000-0000-4000-8000-000000000202',
     'PlayerB',
     'playerb',
-    'https://example.test/player-b.png',
-    'oauth',
+    null,
     'US',
     1600,
     'completed',
@@ -221,7 +218,6 @@ values
     'PlayerC',
     'playerc',
     null,
-    'default',
     'JP',
     1400,
     'active',
@@ -234,7 +230,6 @@ values
     null,
     null,
     null,
-    'default',
     null,
     null,
     'not_started',
@@ -242,6 +237,51 @@ values
     false,
     false
   );
+
+do $$
+begin
+  if exists (
+    select 1
+    from information_schema.columns
+    where table_schema = 'public'
+      and table_name = 'profiles'
+      and column_name = 'avatar_source'
+  ) then
+    execute $sql$
+      insert into public.avatar_assets (
+        id,
+        profile_id,
+        storage_path,
+        content_type,
+        byte_size,
+        width,
+        height,
+        content_sha256
+      )
+      values (
+        '00000000-0000-4000-8000-000000000502',
+        '00000000-0000-4000-8000-000000000202',
+        '00000000-0000-4000-8000-000000000202/bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb.webp',
+        'image/webp',
+        1024,
+        128,
+        128,
+        'bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb'
+      );
+
+      update public.profiles
+      set avatar_url = 'http://127.0.0.1:54321/storage/v1/object/public/avatars/00000000-0000-4000-8000-000000000202/bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb.webp',
+          avatar_source = 'oauth',
+          avatar_asset_id = '00000000-0000-4000-8000-000000000502'
+      where id = '00000000-0000-4000-8000-000000000202'
+    $sql$;
+  else
+    update public.profiles
+    set avatar_url = 'http://127.0.0.1:54321/storage/v1/object/public/avatars/00000000-0000-4000-8000-000000000202/bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb.webp'
+    where id = '00000000-0000-4000-8000-000000000202';
+  end if;
+end;
+$$;
 
 insert into public.profile_accounts (
   profile_id,
@@ -873,7 +913,7 @@ select is(
     "profile_id": "00000000-0000-4000-8000-000000000202",
     "side": "player_b",
     "username": "PlayerB",
-    "avatar_url": "https://example.test/player-b.png",
+    "avatar_url": "http://127.0.0.1:54321/storage/v1/object/public/avatars/00000000-0000-4000-8000-000000000202/bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb.webp",
     "rating_snapshot": 1600,
     "placement_status_snapshot": "completed",
     "placement_completed_count_snapshot": 10,
@@ -905,7 +945,7 @@ select is(
     "profile_id": "00000000-0000-4000-8000-000000000202",
     "side": "player_b",
     "username": "PlayerB",
-    "avatar_url": "https://example.test/player-b.png",
+    "avatar_url": "http://127.0.0.1:54321/storage/v1/object/public/avatars/00000000-0000-4000-8000-000000000202/bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb.webp",
     "rating_snapshot": 1600,
     "placement_status_snapshot": "completed",
     "placement_completed_count_snapshot": 10,

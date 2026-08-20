@@ -10,9 +10,13 @@ import {
   normalizeSf6PlayerName,
   normalizeSf6UserCode,
   normalizeUsername,
-  safeOauthAvatarUrl,
 } from "./normalization";
-import { digestSf6UserCode, hashActionPayload } from "./secure-values";
+import {
+  digestSf6UserCode,
+  hashActionPayload,
+  ratingPreviewToken,
+  verifyRatingPreviewToken,
+} from "./secure-values";
 import { getOnboardingState } from "./queries";
 import {
   getVerifiedUser,
@@ -21,7 +25,9 @@ import {
 import {
   processAvatar,
   AvatarValidationError,
+  type ProcessedAvatar,
 } from "@/features/avatar/process-avatar";
+import { fetchProcessedProviderAvatar } from "@/features/auth/provider-avatar";
 import { isLocale } from "@/i18n/config";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
@@ -100,60 +106,96 @@ function parseRatingSetup(formData: FormData) {
   return { characterCode, rank: rankCandidate, rankTier, masterRating };
 }
 
-async function uploadProcessedAvatar(
+async function stageProcessedAvatar(
   authUserId: string,
-  file: File,
+  processed: ProcessedAvatar,
   actionKey: string,
+  source: "oauth" | "upload",
 ) {
   const state = await getOnboardingState(authUserId);
-  const processed = await processAvatar(await file.arrayBuffer());
-  const storagePath = `${state.profile_id}/${randomUUID()}.webp`;
-  const supabase = await createClient();
-  const upload = await supabase.storage
+  const assetVersion = hashActionPayload({
+    actionKey,
+    contentSha256: processed.sha256,
+  });
+  const storagePath = `${state.profile_id}/${assetVersion}.webp`;
+  const admin = createAdminClient();
+  const upload = await admin.storage
     .from("avatars")
     .upload(storagePath, processed.buffer, {
       contentType: "image/webp",
-      upsert: false,
+      upsert: true,
     });
   if (upload.error) throw new AvatarValidationError("avatar_upload");
 
-  const publicUrl = supabase.storage.from("avatars").getPublicUrl(storagePath)
+  const publicUrl = admin.storage.from("avatars").getPublicUrl(storagePath)
     .data.publicUrl;
-  const payload = {
+  return {
     storagePath,
     publicUrl,
     byteSize: processed.byteSize,
     width: processed.width,
     height: processed.height,
     sha256: processed.sha256,
+    source,
   };
+}
+
+function oldStoragePath(data: unknown) {
+  if (!data || typeof data !== "object" || Array.isArray(data)) return null;
+  const candidate = (data as Record<string, unknown>).old_storage_path;
+  return typeof candidate === "string" ? candidate : null;
+}
+
+async function removeCommittedOldAvatar(
+  data: unknown,
+  currentStoragePath: string,
+) {
+  const path = oldStoragePath(data);
+  if (!path || path === currentStoragePath) return;
+  const removed = await createAdminClient()
+    .storage.from("avatars")
+    .remove([path]);
+  if (removed.error) throw new AvatarValidationError("avatar_cleanup_required");
+}
+
+async function uploadedAvatar(file: File) {
+  return processAvatar(await file.arrayBuffer());
+}
+
+async function providerAvatar(
+  user: Awaited<ReturnType<typeof getVerifiedUser>>,
+) {
+  try {
+    return await fetchProcessedProviderAvatar(user);
+  } catch {
+    // Provider candidates are optional. A transient provider failure must not
+    // block the owner from completing onboarding with the default Avatar.
+    return null;
+  }
+}
+
+async function attachProcessedAvatar(
+  authUserId: string,
+  payload: Awaited<ReturnType<typeof stageProcessedAvatar>>,
+  actionKey: string,
+) {
   const admin = createAdminClient();
   const attached = await admin.rpc("phase2_attach_avatar", {
     requested_actor_auth_user_id: authUserId,
-    requested_storage_path: storagePath,
-    requested_public_url: publicUrl,
-    requested_byte_size: processed.byteSize,
-    requested_width: processed.width,
-    requested_height: processed.height,
-    requested_content_sha256: processed.sha256,
+    requested_storage_path: payload.storagePath,
+    requested_public_url: payload.publicUrl,
+    requested_byte_size: payload.byteSize,
+    requested_width: payload.width,
+    requested_height: payload.height,
+    requested_content_sha256: payload.sha256,
     requested_idempotency_key: `${actionKey}:avatar`,
     requested_hash: hashActionPayload(payload),
   });
 
   if (attached.error) {
-    await supabase.storage.from("avatars").remove([storagePath]);
     throw new AvatarValidationError("avatar_attach");
   }
-
-  const cleanup = await admin.rpc("phase2_avatar_cleanup_paths", {
-    requested_actor_auth_user_id: authUserId,
-  });
-  const stalePaths = (cleanup.data ?? []).filter(
-    (path) => path !== storagePath,
-  );
-  if (stalePaths.length > 0) {
-    await supabase.storage.from("avatars").remove(stalePaths);
-  }
+  await removeCommittedOldAvatar(attached.data, payload.storagePath);
 }
 
 export async function saveAccountStepAction(
@@ -161,28 +203,50 @@ export async function saveAccountStepAction(
   formData: FormData,
 ): Promise<ActionState> {
   const locale = localeFromForm(formData);
+  let stagedAvatar: Awaited<ReturnType<typeof stageProcessedAvatar>> | null =
+    null;
   try {
     const user = await getVerifiedUser();
     const username = normalizeUsername(String(formData.get("username") ?? ""));
     const actionKey = idempotencyKey(formData);
-    const oauthAvatar = safeOauthAvatarUrl(
-      user.user_metadata.avatar_url ?? user.user_metadata.picture,
-    );
-    const payload = { ...username, oauthAvatar };
+    const avatar = formData.get("avatar");
+    const processed =
+      avatar instanceof File && avatar.size > 0
+        ? await uploadedAvatar(avatar)
+        : formData.get("useProviderAvatar") === "on"
+          ? await providerAvatar(user)
+          : null;
+    const avatarSource =
+      avatar instanceof File && avatar.size > 0 ? "upload" : "oauth";
+    stagedAvatar = processed
+      ? await stageProcessedAvatar(user.id, processed, actionKey, avatarSource)
+      : null;
+    const payload = { ...username, avatar: stagedAvatar };
+    const avatarArguments = stagedAvatar
+      ? {
+          requested_storage_path: stagedAvatar.storagePath,
+          requested_public_url: stagedAvatar.publicUrl,
+          requested_byte_size: stagedAvatar.byteSize,
+          requested_width: stagedAvatar.width,
+          requested_height: stagedAvatar.height,
+          requested_content_sha256: stagedAvatar.sha256,
+          requested_avatar_source: stagedAvatar.source,
+        }
+      : {};
     const admin = createAdminClient();
     const saved = await admin.rpc("phase2_save_account_step", {
       requested_actor_auth_user_id: user.id,
       requested_username: username.display,
       requested_username_normalized: username.normalized,
-      requested_oauth_avatar_url: oauthAvatar as string,
       requested_idempotency_key: actionKey,
       requested_hash: hashActionPayload(payload),
+      ...avatarArguments,
     });
-    if (saved.error) return rpcFailure(saved.error);
-
-    const avatar = formData.get("avatar");
-    if (avatar instanceof File && avatar.size > 0) {
-      await uploadProcessedAvatar(user.id, avatar, actionKey);
+    if (saved.error) {
+      return rpcFailure(saved.error);
+    }
+    if (stagedAvatar) {
+      await removeCommittedOldAvatar(saved.data, stagedAvatar.storagePath);
     }
   } catch (error) {
     if (
@@ -242,31 +306,49 @@ export async function completeOnboardingAction(
     const user = await getVerifiedUser();
     const setup = parseRatingSetup(formData);
     const admin = createAdminClient();
+    const preview = await admin.rpc("phase2_preview_starting_rating", {
+      requested_actor_auth_user_id: user.id,
+      requested_character_code: setup.characterCode,
+      requested_rank: setup.rank,
+      requested_rank_tier: setup.rankTier as number,
+      requested_master_rating: setup.masterRating as number,
+    });
+    if (preview.error) return rpcFailure(preview.error);
+    const result =
+      preview.data &&
+      typeof preview.data === "object" &&
+      !Array.isArray(preview.data) &&
+      typeof preview.data.starting_rating === "number" &&
+      typeof preview.data.parameter_version === "string"
+        ? {
+            starting_rating: preview.data.starting_rating,
+            parameter_version: preview.data.parameter_version,
+          }
+        : null;
+    if (!result) return { status: "error", message: "save_failed" };
+    const previewContract = { setup, ...result };
     if (formData.get("intent") === "preview") {
-      const preview = await admin.rpc("phase2_preview_starting_rating", {
-        requested_actor_auth_user_id: user.id,
-        requested_character_code: setup.characterCode,
-        requested_rank: setup.rank,
-        requested_rank_tier: setup.rankTier as number,
-        requested_master_rating: setup.masterRating as number,
-      });
-      if (preview.error) return rpcFailure(preview.error);
-      const result =
-        preview.data &&
-        typeof preview.data === "object" &&
-        !Array.isArray(preview.data)
-          ? {
-              starting_rating:
-                typeof preview.data.starting_rating === "number"
-                  ? preview.data.starting_rating
-                  : 0,
-              parameter_version:
-                typeof preview.data.parameter_version === "string"
-                  ? preview.data.parameter_version
-                  : "",
-            }
-          : undefined;
-      return { status: "success", message: "rating_preview", result };
+      return {
+        status: "success",
+        message: "rating_preview",
+        result: {
+          ...result,
+          character_code: setup.characterCode,
+          rank: setup.rank,
+          rank_tier: setup.rankTier,
+          master_rating: setup.masterRating,
+          preview_token: ratingPreviewToken(previewContract),
+          preview_render_key: randomUUID(),
+        },
+      };
+    }
+    if (
+      !verifyRatingPreviewToken(
+        previewContract,
+        String(formData.get("previewToken") ?? ""),
+      )
+    ) {
+      return { status: "error", message: "rating_preview_required" };
     }
     const completed = await admin.rpc("phase2_complete_onboarding", {
       requested_actor_auth_user_id: user.id,
@@ -275,7 +357,8 @@ export async function completeOnboardingAction(
       requested_rank_tier: setup.rankTier as number,
       requested_master_rating: setup.masterRating as number,
       requested_idempotency_key: idempotencyKey(formData),
-      requested_hash: hashActionPayload(setup),
+      requested_hash: hashActionPayload(previewContract),
+      requested_preview_parameter_version: result.parameter_version,
     });
     if (completed.error) return rpcFailure(completed.error);
   } catch (error) {
@@ -387,7 +470,14 @@ export async function replaceAvatarAction(
     if (!(avatar instanceof File) || avatar.size < 1) {
       return { status: "error", message: "avatar_required" };
     }
-    await uploadProcessedAvatar(user.id, avatar, idempotencyKey(formData));
+    const actionKey = idempotencyKey(formData);
+    const staged = await stageProcessedAvatar(
+      user.id,
+      await uploadedAvatar(avatar),
+      actionKey,
+      "upload",
+    );
+    await attachProcessedAvatar(user.id, staged, actionKey);
     revalidatePath(`/${localeFromForm(formData)}/settings/profile`);
     return { status: "success", message: "saved" };
   } catch (error) {
@@ -418,8 +508,7 @@ export async function deleteAvatarAction(
         ? detached.data.storage_path
         : null;
     if (typeof path === "string") {
-      const supabase = await createClient();
-      await supabase.storage.from("avatars").remove([path]);
+      await admin.storage.from("avatars").remove([path]);
     }
     revalidatePath(`/${localeFromForm(formData)}/settings/profile`);
     return { status: "success", message: "saved" };
@@ -457,6 +546,7 @@ export async function requestAccountDeletionAction(
         ? response.ready_to_finalize === true
         : false;
     if (!ready) {
+      revalidatePath(`/${locale}/settings/profile`);
       return { status: "success", message: "deletion_pending_blocked" };
     }
 
@@ -465,11 +555,21 @@ export async function requestAccountDeletionAction(
       requested_actor_auth_user_id: user.id,
     });
     if (pathsResult.error) return rpcFailure(pathsResult.error);
-    if ((pathsResult.data ?? []).length > 0) {
-      const supabase = await createClient();
-      const removed = await supabase.storage
-        .from("avatars")
-        .remove(pathsResult.data ?? []);
+    const listed = await admin.storage.from("avatars").list(state.profile_id, {
+      limit: 1000,
+    });
+    if (listed.error)
+      return { status: "error", message: "avatar_cleanup_failed" };
+    const paths = Array.from(
+      new Set([
+        ...(pathsResult.data ?? []),
+        ...(listed.data ?? []).map(
+          (object) => `${state.profile_id}/${object.name}`,
+        ),
+      ]),
+    );
+    if (paths.length > 0) {
+      const removed = await admin.storage.from("avatars").remove(paths);
       if (removed.error)
         return { status: "error", message: "avatar_cleanup_failed" };
     }

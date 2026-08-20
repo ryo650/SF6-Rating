@@ -1,9 +1,9 @@
 # Phase 2 — Account & Onboarding Implementation Plan
 
-Status: Ready for Implementation
+Status: Implementation Complete — Final Local DB Re-verification Pending
 Planning date: 2026-08-17
-Branch: `codex/phase-2-account-onboarding-decisions`
-Scope: Planning only. This document does not apply migrations, change hosted Auth settings, or implement feature code.
+Branch: `phase/2-account-onboarding`
+Scope: Local implementation only. Hosted migrations、provider settings、Production変更は未実施。
 
 ## 1. Goal and Sources of Truth
 
@@ -70,7 +70,7 @@ Implementation時に再確認するnon-normative technical references:
 
 ### Constraints on implementation
 
-- 既存migrationを編集しない。すべてforward migrationとする。
+- 共有済み・適用済みmigrationを編集しない。Phase 2初期migrationはHosted未適用のimplementation branch内でreview修正し、適用済み旧版からも進めるforward補正を`20260817000400_phase2_account_review_hardening.sql`として保持する。
 - PostgreSQLをpersistent stateのSource of Truthとし、重要なmutationをtrusted Server / Database境界へ置く。
 - Realtimeを確定状態のSource of Truthにしない。
 - Supabase service-role keyはserver-only moduleからだけ利用し、browser bundleへ含めない。
@@ -196,6 +196,7 @@ Forward migrationsは次をdependency順に追加する。
 6. `starting-rating-v2`をMR 1〜5000で追加し、v1は許可された`is_active`変更だけでinactiveにする。
 7. Step save、profile edit、onboarding completion、deletion request / finalization用trusted functions。
 8. Public / owner / active-match / admin projectionsとRLS grantsの再検証。
+9. Independent Reviewで判明したclaim ledger、削除PII scrub、account lock、immutable Avatar pointer swap、browser Storage deny、column grantsをforward hardening migrationで補正する。
 
 Migrationはempty resetとPhase 1からのupgradeの両方をtestする。新しいmaster codeは表示名変更で変えず、inactive rowを履歴FKから物理削除しない。
 

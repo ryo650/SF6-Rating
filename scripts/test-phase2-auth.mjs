@@ -193,7 +193,6 @@ try {
     requested_actor_auth_user_id: userId,
     requested_username: username,
     requested_username_normalized: username,
-    requested_oauth_avatar_url: null,
     requested_idempotency_key: `auth-account-${suffix}`,
     requested_hash: sha256(`account-${suffix}`),
   });
@@ -202,7 +201,7 @@ try {
     requested_actor_auth_user_id: userId,
     requested_player_name: "Local Auth Test",
     requested_user_code: sf6UserCode,
-    requested_user_code_digest: sha256(`user-code-${suffix}`),
+    requested_user_code_digest: sha256(`reclaim-${sf6UserCode}`),
     requested_country_code: "JP",
     requested_broad_region_code: "JP-KANTO",
     requested_idempotency_key: `auth-sf6-${suffix}`,
@@ -217,6 +216,7 @@ try {
     requested_master_rating: null,
     requested_idempotency_key: `auth-complete-${suffix}`,
     requested_hash: sha256(`complete-${suffix}`),
+    requested_preview_parameter_version: "starting-rating-v2",
   });
   assert.ifError(completion.error);
   hasAppendOnlyHistory = true;

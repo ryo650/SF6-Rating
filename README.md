@@ -1,6 +1,6 @@
 # SF6-Rating
 
-SF6-RatingのWebアプリケーションです。Phase 0のNext.js基盤と、Phase 1のGit管理されたSupabase data foundationを提供します。Auth UI、Onboarding、Matchmaking等のFeature実装はPhase 2以降です。
+SF6-RatingのWebアプリケーションです。Phase 0のNext.js基盤、Phase 1のGit管理されたSupabase data foundation、Phase 2のAccount / Auth / Onboarding vertical sliceを提供します。MatchmakingはPhase 3以降です。
 
 ## Requirements
 
@@ -37,7 +37,7 @@ npm run supabase -- db reset --local
 npm run supabase -- stop
 ```
 
-Phase 1のdomain schemaは `supabase/migrations/` で依存順に管理します。`supabase/seed.sql` はローカル・テスト専用のactive seasonだけを作成し、production seasonを決めるものではありません。
+Phase 1〜2のdomain schemaは `supabase/migrations/` で依存順に管理します。`supabase/seed.sql` はローカル・テスト専用のactive seasonだけを作成し、production seasonを決めるものではありません。
 
 ```sh
 npm run db:start
@@ -47,7 +47,7 @@ npm run db:lint
 npm run db:types
 ```
 
-`db:types` 実行後はgenerated fileの差分を確認してください。空のlocal databaseから `db:reset` を通し、DB testsとlintが成功してからmigrationを共有環境へ適用します。Phase 1のschema契約、RLS permission matrix、transaction boundariesは [`docs/phase-1-data-foundation.md`](./docs/phase-1-data-foundation.md) にあります。
+`db:types` 実行後はgenerated fileの差分を確認してください。空のlocal databaseから `db:reset` を通し、DB testsとlintが成功してからmigrationを共有環境へ適用します。Phase 1のschema契約は [`docs/phase-1-data-foundation.md`](./docs/phase-1-data-foundation.md)、Phase 2の実装・検証Gateは [`docs/phase-2-account-onboarding-implementation-plan.md`](./docs/phase-2-account-onboarding-implementation-plan.md) とHuman Review Packetにあります。
 
 Remote projectを操作するコマンドは明示的な確認後にだけ実行します。特に `db push --linked` や `db reset --linked` を通常のlocal workflowで使わないでください。初回linkにはDashboard URLのproject refが必要です。
 
@@ -64,6 +64,9 @@ VercelのProject Settingsで次をPreview/Productionそれぞれに設定しま�
 
 - `NEXT_PUBLIC_SUPABASE_URL`: 対象Supabase projectのURL
 - `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY`: 対象projectのpublishable key
+- `SUPABASE_SERVICE_ROLE_KEY`: server-only trusted actions / Auth deletion用
+- `SF6_USER_CODE_RECLAIM_PEPPER`: server-only User Code reclaim digest用
+- `APP_BASE_URL`: 承認済みAuth callback origin
 
 Framework PresetはNext.js、Install Commandは`npm ci`、Build Commandは`npm run build`です。Previewでproduction dataを暗黙に共有しない運用を推奨します。Auth providerをPhase 2で設定する際は、Supabaseのredirect allow listと各OAuth providerにVercel環境別callback URLを登録します。
 

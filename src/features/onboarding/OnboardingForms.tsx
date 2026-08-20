@@ -11,6 +11,7 @@ import {
   type ActionState,
 } from "@/features/account/action-state";
 import type { OnboardingState } from "@/features/account/queries";
+import { feedbackMessage } from "@/features/account/feedback";
 
 type SharedProps = {
   locale: "ja" | "en";
@@ -19,19 +20,30 @@ type SharedProps = {
   labels: Record<string, string>;
 };
 
-function ResultMessage({ state }: { state: ActionState }) {
+function ResultMessage({
+  locale,
+  state,
+}: {
+  locale: "ja" | "en";
+  state: ActionState;
+}) {
   if (!state.message) return null;
   return (
     <p
       className={state.status === "error" ? "form-error" : "form-success"}
       role={state.status === "error" ? "alert" : "status"}
     >
-      {state.message}
+      {feedbackMessage(locale, state.message)}
     </p>
   );
 }
 
-export function AccountStepForm(props: SharedProps) {
+export function AccountStepForm(
+  props: SharedProps & {
+    providerAvatarAvailable: boolean;
+    providerUsernameCandidate: string | null;
+  },
+) {
   const [actionState, action, pending] = useActionState(
     saveAccountStepAction,
     initialActionState,
@@ -44,7 +56,9 @@ export function AccountStepForm(props: SharedProps) {
         <span>{props.labels.usernameLabel}</span>
         <input
           aria-describedby="username-help"
-          defaultValue={props.state.username ?? ""}
+          defaultValue={
+            props.state.username ?? props.providerUsernameCandidate ?? ""
+          }
           maxLength={80}
           name="username"
           required
@@ -53,6 +67,36 @@ export function AccountStepForm(props: SharedProps) {
       <p className="field-help" id="username-help">
         {props.labels.usernameHelp}
       </p>
+      {props.state.avatar_url ? (
+        /* eslint-disable-next-line @next/next/no-img-element */
+        <img
+          alt=""
+          className="avatar-preview"
+          height="96"
+          src={props.state.avatar_url}
+          width="96"
+        />
+      ) : null}
+      {props.providerAvatarAvailable &&
+      props.state.avatar_source === "default" ? (
+        <label>
+          <span>{props.labels.providerAvatarCandidate}</span>
+          {/* The authenticated route returns a processed WebP and keeps the
+              provider URL out of the browser. */}
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            alt=""
+            className="avatar-preview"
+            height="96"
+            src="/auth/provider-avatar"
+            width="96"
+          />
+          <span>
+            <input defaultChecked name="useProviderAvatar" type="checkbox" />
+            {props.labels.useProviderAvatar}
+          </span>
+        </label>
+      ) : null}
       <label>
         <span>{props.labels.avatarLabel}</span>
         <input
@@ -61,7 +105,7 @@ export function AccountStepForm(props: SharedProps) {
           type="file"
         />
       </label>
-      <ResultMessage state={actionState} />
+      <ResultMessage locale={props.locale} state={actionState} />
       <button className="button" disabled={pending} type="submit">
         {pending ? "…" : props.labels.next}
       </button>
@@ -78,7 +122,10 @@ type Region = {
 };
 
 export function Sf6InfoStepForm(
-  props: SharedProps & { countries: { code: string }[]; regions: Region[] },
+  props: SharedProps & {
+    countries: { code: string; label: string }[];
+    regions: Region[];
+  },
 ) {
   const [actionState, action, pending] = useActionState(
     saveSf6InfoStepAction,
@@ -90,11 +137,6 @@ export function Sf6InfoStepForm(
     () => props.regions.filter((region) => region.country_code === country),
     [country, props.regions],
   );
-  const countryNames = useMemo(
-    () => new Intl.DisplayNames([props.locale], { type: "region" }),
-    [props.locale],
-  );
-
   return (
     <form action={action} className="stack-form">
       <input name="locale" type="hidden" value={props.locale} />
@@ -128,9 +170,9 @@ export function Sf6InfoStepForm(
           onChange={(event) => setCountry(event.target.value)}
           value={country}
         >
-          {props.countries.map(({ code }) => (
+          {props.countries.map(({ code, label }) => (
             <option key={code} value={code}>
-              {countryNames.of(code) ?? code} ({code})
+              {label} ({code})
             </option>
           ))}
         </select>
@@ -156,7 +198,7 @@ export function Sf6InfoStepForm(
           ))}
         </select>
       </label>
-      <ResultMessage state={actionState} />
+      <ResultMessage locale={props.locale} state={actionState} />
       <button className="button" disabled={pending} type="submit">
         {pending ? "…" : props.labels.next}
       </button>
@@ -173,16 +215,55 @@ export function RatingSetupForm(
     completeOnboardingAction,
     initialActionState,
   );
-  const [rank, setRank] = useState<string>(props.state.sf6_rank ?? "rookie");
+  const previewRank =
+    typeof actionState.result?.rank === "string"
+      ? actionState.result.rank
+      : null;
+  const previewCharacter =
+    typeof actionState.result?.character_code === "string"
+      ? actionState.result.character_code
+      : null;
+  const previewRankTier =
+    typeof actionState.result?.rank_tier === "number"
+      ? actionState.result.rank_tier
+      : null;
+  const previewMasterRating =
+    typeof actionState.result?.master_rating === "number"
+      ? actionState.result.master_rating
+      : null;
+  const [rank, setRank] = useState<string>(
+    previewRank ?? props.state.sf6_rank ?? "rookie",
+  );
+  const previewToken =
+    typeof actionState.result?.preview_token === "string"
+      ? actionState.result.preview_token
+      : "";
+  const previewRenderKey =
+    typeof actionState.result?.preview_render_key === "string"
+      ? actionState.result.preview_render_key
+      : "rating-preview-pending";
+  const [previewDirty, setPreviewDirty] = useState(true);
 
   return (
-    <form action={action} className="stack-form">
+    <form
+      action={action}
+      className="stack-form"
+      key={previewRenderKey}
+      onChange={() => setPreviewDirty(true)}
+    >
       <input name="locale" type="hidden" value={props.locale} />
       <input name="idempotencyKey" type="hidden" value={props.idempotencyKey} />
+      <input
+        name="previewToken"
+        type="hidden"
+        value={previewDirty ? "" : previewToken}
+      />
       <label>
         <span>{props.labels.characterLabel}</span>
         <select
-          defaultValue={props.state.main_character_code ?? "ryu"}
+          defaultValue={
+            previewCharacter ?? props.state.main_character_code ?? "ryu"
+          }
           name="characterCode"
           required
         >
@@ -220,7 +301,9 @@ export function RatingSetupForm(
         <label>
           <span>{props.labels.masterRatingLabel}</span>
           <input
-            defaultValue={props.state.master_rating ?? 1500}
+            defaultValue={
+              previewMasterRating ?? props.state.master_rating ?? 1500
+            }
             inputMode="numeric"
             max={5000}
             min={1}
@@ -232,7 +315,10 @@ export function RatingSetupForm(
       ) : (
         <label>
           <span>{props.labels.rankTierLabel}</span>
-          <select defaultValue={props.state.sf6_rank_tier ?? 3} name="rankTier">
+          <select
+            defaultValue={previewRankTier ?? props.state.sf6_rank_tier ?? 3}
+            name="rankTier"
+          >
             {[1, 2, 3, 4, 5].map((tier) => (
               <option key={tier} value={tier}>
                 {tier}
@@ -242,25 +328,26 @@ export function RatingSetupForm(
         </label>
       )}
       <p className="field-help">{props.labels.placementExplanation}</p>
-      {actionState.result?.starting_rating ? (
+      {!previewDirty && actionState.result?.starting_rating ? (
         <output className="rating-preview" aria-live="polite">
-          Starting Rating: {actionState.result.starting_rating}
+          {props.labels.startingRating}: {actionState.result.starting_rating}
         </output>
       ) : null}
-      <ResultMessage state={actionState} />
+      <ResultMessage locale={props.locale} state={actionState} />
       <div className="form-actions">
         <button
           className="button button-secondary"
           disabled={pending}
           name="intent"
+          onClick={() => setPreviewDirty(false)}
           type="submit"
           value="preview"
         >
-          Preview
+          {props.labels.previewStartingRating}
         </button>
         <button
           className="button"
-          disabled={pending}
+          disabled={pending || previewDirty || !previewToken}
           name="intent"
           type="submit"
           value="complete"

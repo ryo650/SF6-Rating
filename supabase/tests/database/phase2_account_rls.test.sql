@@ -3,7 +3,7 @@ begin;
 create extension if not exists pgtap with schema extensions;
 set local search_path = public, extensions;
 
-select plan(10);
+select plan(13);
 
 select is(
   (
@@ -13,8 +13,8 @@ select is(
       and tablename = 'objects'
       and policyname like 'avatars_%'
   ),
-  4::bigint,
-  'Avatar Storage has explicit insert/select/update/delete policies'
+  1::bigint,
+  'Avatar Storage exposes owner metadata read but no browser mutation policy'
 );
 select is(
   (
@@ -31,6 +31,15 @@ select is(
 select ok(has_table_privilege('anon', 'public.countries', 'SELECT'), 'anonymous users can read active country master data');
 select ok(has_table_privilege('authenticated', 'public.broad_regions', 'SELECT'), 'authenticated users can read active region master data');
 select ok(not has_table_privilege('anon', 'public.avatar_assets', 'SELECT'), 'anonymous users cannot inspect Avatar object metadata');
+select ok(
+  not has_column_privilege(
+    'authenticated',
+    'public.profile_sf6_identities',
+    'sf6_user_code_changed_at',
+    'SELECT'
+  ),
+  'active opponents cannot inspect SF6 User Code change history'
+);
 
 insert into auth.users (
   id, instance_id, aud, role, email, encrypted_password, email_confirmed_at,
@@ -41,20 +50,49 @@ insert into auth.users (
 
 do $$
 begin
-  perform public.phase2_save_account_step('30000000-0000-4000-8000-000000000001', 'RlsOwner', 'rlsowner', null, 'rls-owner-account', repeat('a', 64));
+  perform public.phase2_save_account_step('30000000-0000-4000-8000-000000000001', 'RlsOwner', 'rlsowner', 'rls-owner-account', repeat('a', 64));
 end;
 $$;
 
 set local role authenticated;
 select set_config('request.jwt.claim.sub', '30000000-0000-4000-8000-000000000002', true);
 select is((select count(*) from public.profile_accounts), 1::bigint, 'an authenticated user sees only their own account row');
-select is((select count(*) from public.profile_sf6_identities), 1::bigint, 'an authenticated user sees only their own identity row outside Active Match');
+select is((select count(profile_id) from public.profile_sf6_identities), 1::bigint, 'an authenticated user sees only their own identity row outside Active Match');
 select is((select count(*) from public.profile_private_details), 1::bigint, 'an authenticated user sees only their own private details row');
-select is((select count(*) from public.public_profiles), 0::bigint, 'an unfinished private profile is absent from public projection');
+select is(
+  (
+    select count(*)
+    from public.public_profiles
+    where id = (
+      select profile_id from public.profile_accounts
+      where auth_user_id = '30000000-0000-4000-8000-000000000001'
+    )
+  ),
+  0::bigint,
+  'an unfinished private profile is absent from public projection'
+);
 select ok(
   not has_function_privilege('authenticated', 'public.phase2_request_account_deletion(uuid,text,text)', 'EXECUTE'),
   'browser role cannot invoke deletion RPC with a spoofed actor UUID'
 );
 
+select set_config('request.jwt.claim.sub', '30000000-0000-4000-8000-000000000001', true);
+select throws_ok(
+  format(
+    $sql$insert into storage.objects (bucket_id, name, owner_id, metadata)
+      values ('avatars', %L, '30000000-0000-4000-8000-000000000001', '{}'::jsonb)$sql$,
+    (select profile_id::text || '/owner.webp' from public.profile_accounts where auth_user_id = '30000000-0000-4000-8000-000000000001')
+  ),
+  '42501',
+  null,
+  'Avatar owner cannot bypass the trusted processing pipeline'
+);
+select throws_ok(
+  $$insert into storage.objects (bucket_id, name, owner_id, metadata)
+    values ('avatars', 'not-the-owner/wrong.webp', '30000000-0000-4000-8000-000000000001', '{}'::jsonb)$$,
+  '42501',
+  null,
+  'Avatar owner cannot insert outside their immutable Public User ID folder'
+);
 select * from finish();
 rollback;

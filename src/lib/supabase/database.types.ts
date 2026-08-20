@@ -994,6 +994,7 @@ export type Database = {
           sf6_player_name: string | null;
           sf6_user_code: string | null;
           sf6_user_code_changed_at: string | null;
+          sf6_user_code_digest: string | null;
           sf6_user_code_normalized: string | null;
           updated_at: string;
         };
@@ -1002,6 +1003,7 @@ export type Database = {
           sf6_player_name?: string | null;
           sf6_user_code?: string | null;
           sf6_user_code_changed_at?: string | null;
+          sf6_user_code_digest?: string | null;
           sf6_user_code_normalized?: string | null;
           updated_at?: string;
         };
@@ -1010,6 +1012,7 @@ export type Database = {
           sf6_player_name?: string | null;
           sf6_user_code?: string | null;
           sf6_user_code_changed_at?: string | null;
+          sf6_user_code_digest?: string | null;
           sf6_user_code_normalized?: string | null;
           updated_at?: string;
         };
@@ -2120,6 +2123,7 @@ export type Database = {
           requested_hash: string;
           requested_idempotency_key: string;
           requested_master_rating: number;
+          requested_preview_parameter_version: string;
           requested_rank: Database["public"]["Enums"]["sf6_rank"];
           requested_rank_tier: number;
         };
@@ -2168,6 +2172,16 @@ export type Database = {
         };
         Returns: Json;
       };
+      phase2_release_deleted_user_code: {
+        Args: {
+          requested_actor_auth_user_id: string;
+          requested_code_digest: string;
+          requested_hash: string;
+          requested_idempotency_key: string;
+          requested_reason: string;
+        };
+        Returns: Json;
+      };
       phase2_request_account_deletion: {
         Args: {
           requested_actor_auth_user_id: string;
@@ -2183,11 +2197,17 @@ export type Database = {
       phase2_save_account_step: {
         Args: {
           requested_actor_auth_user_id: string;
+          requested_avatar_source?: Database["public"]["Enums"]["avatar_source_type"];
+          requested_byte_size?: number;
+          requested_content_sha256?: string;
           requested_hash: string;
+          requested_height?: number;
           requested_idempotency_key: string;
-          requested_oauth_avatar_url: string;
+          requested_public_url?: string;
+          requested_storage_path?: string;
           requested_username: string;
           requested_username_normalized: string;
+          requested_width?: number;
         };
         Returns: Json;
       };

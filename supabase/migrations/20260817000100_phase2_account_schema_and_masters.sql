@@ -155,8 +155,11 @@ create unique index profiles_one_current_avatar_asset_idx
 alter table public.profiles
   add constraint profiles_avatar_shape check (
     (avatar_source = 'default' and avatar_url is null and avatar_asset_id is null)
-    or (avatar_source = 'oauth' and avatar_url is not null and avatar_asset_id is null)
-    or (avatar_source = 'upload' and avatar_url is not null and avatar_asset_id is not null)
+    or (
+      avatar_source in ('oauth', 'upload')
+      and avatar_url is not null
+      and avatar_asset_id is not null
+    )
   ),
   add constraint profiles_username_phase2_length check (
     username is null or char_length(username) between 3 and 80
@@ -171,6 +174,7 @@ alter table public.profiles
     foreign key (country_code) references public.countries (code) on delete restrict;
 
 alter table public.profile_sf6_identities
+  add column sf6_user_code_digest text,
   add constraint profile_sf6_identities_name_phase2_length check (
     sf6_player_name is null or char_length(sf6_player_name) between 1 and 128
   ),
@@ -180,7 +184,18 @@ alter table public.profile_sf6_identities
       sf6_user_code ~ '^[0-9]{10}$'
       and sf6_user_code_normalized = sf6_user_code
     )
+  ),
+  add constraint profile_sf6_identities_digest_shape check (
+    sf6_user_code_digest is null
+    or sf6_user_code_digest ~ '^[0-9a-f]{64}$'
+  ),
+  add constraint profile_sf6_identities_code_digest_pair check (
+    sf6_user_code_digest is null or sf6_user_code is not null
   );
+
+create unique index profile_sf6_identities_user_code_digest_unique
+  on public.profile_sf6_identities (sf6_user_code_digest)
+  where sf6_user_code_digest is not null;
 
 alter table public.profile_private_details
   add constraint profile_private_details_region_master_fk
@@ -240,7 +255,7 @@ values
 create table private.account_deletion_jobs (
   id uuid primary key default gen_random_uuid(),
   profile_id uuid not null unique references public.profiles (id) on delete restrict,
-  auth_user_id uuid not null,
+  auth_user_id uuid,
   status private.account_deletion_job_status not null default 'requested',
   attempt_count integer not null default 0,
   blocking_reasons jsonb not null default '[]'::jsonb,
@@ -254,8 +269,8 @@ create table private.account_deletion_jobs (
     jsonb_typeof(blocking_reasons) = 'array'
   ),
   constraint account_deletion_jobs_completion_shape check (
-    (status = 'completed' and completed_at is not null)
-    or (status <> 'completed' and completed_at is null)
+    (status = 'completed' and completed_at is not null and auth_user_id is null)
+    or (status <> 'completed' and completed_at is null and auth_user_id is not null)
   )
 );
 
@@ -282,6 +297,21 @@ create table private.deleted_user_code_reclaims (
       and released_by_admin_profile_id is not null
       and btrim(release_reason) <> ''
     )
+  )
+);
+
+create table private.sf6_user_code_claims (
+  code_digest text primary key,
+  live_profile_id uuid unique references public.profiles (id) on delete restrict,
+  deleted_reclaim_id uuid unique references private.deleted_user_code_reclaims (id) on delete restrict,
+  created_at timestamptz not null default statement_timestamp(),
+  updated_at timestamptz not null default statement_timestamp(),
+  constraint sf6_user_code_claims_digest_shape check (
+    code_digest ~ '^[0-9a-f]{64}$'
+  ),
+  constraint sf6_user_code_claims_single_owner check (
+    (live_profile_id is not null)::integer
+    + (deleted_reclaim_id is not null)::integer = 1
   )
 );
 
@@ -516,11 +546,13 @@ comment on table private.deleted_user_code_reclaims is
 revoke all on table private.username_reservations from public, anon, authenticated;
 revoke all on table private.account_deletion_jobs from public, anon, authenticated;
 revoke all on table private.deleted_user_code_reclaims from public, anon, authenticated;
+revoke all on table private.sf6_user_code_claims from public, anon, authenticated;
 revoke all on table private.action_rate_limits from public, anon, authenticated;
 revoke all on table private.action_rate_limit_rules from public, anon, authenticated;
 
 grant all privileges on table private.username_reservations to service_role;
 grant all privileges on table private.account_deletion_jobs to service_role;
 grant all privileges on table private.deleted_user_code_reclaims to service_role;
+grant all privileges on table private.sf6_user_code_claims to service_role;
 grant all privileges on table private.action_rate_limits to service_role;
 grant all privileges on table private.action_rate_limit_rules to service_role;

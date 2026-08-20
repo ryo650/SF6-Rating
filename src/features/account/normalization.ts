@@ -68,14 +68,3 @@ export function normalizeSf6UserCode(input: string): string {
 
   return normalized;
 }
-
-export function safeOauthAvatarUrl(input: unknown): string | null {
-  if (typeof input !== "string") return null;
-
-  try {
-    const url = new URL(input);
-    return url.protocol === "https:" ? url.toString() : null;
-  } catch {
-    return null;
-  }
-}

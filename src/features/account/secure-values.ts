@@ -1,6 +1,6 @@
 import "server-only";
 
-import { createHash, createHmac } from "node:crypto";
+import { createHash, createHmac, timingSafeEqual } from "node:crypto";
 import { getServerEnv } from "@/lib/env/server";
 
 function stableJson(value: unknown): string {
@@ -24,4 +24,18 @@ export function digestSf6UserCode(userCode: string): string {
   return createHmac("sha256", getServerEnv().SF6_USER_CODE_RECLAIM_PEPPER)
     .update(userCode)
     .digest("hex");
+}
+
+export function ratingPreviewToken(value: unknown): string {
+  return createHmac("sha256", getServerEnv().SF6_USER_CODE_RECLAIM_PEPPER)
+    .update("rating-preview-v1:")
+    .update(stableJson(value))
+    .digest("hex");
+}
+
+export function verifyRatingPreviewToken(value: unknown, token: string) {
+  if (!/^[0-9a-f]{64}$/.test(token)) return false;
+  const expected = Buffer.from(ratingPreviewToken(value), "hex");
+  const actual = Buffer.from(token, "hex");
+  return timingSafeEqual(expected, actual);
 }

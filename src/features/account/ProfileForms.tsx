@@ -12,6 +12,7 @@ import {
 } from "./actions";
 import { initialActionState, type ActionState } from "./action-state";
 import type { OnboardingState } from "./queries";
+import { feedbackMessage } from "./feedback";
 
 type Labels = Record<string, string>;
 type CommonProps = {
@@ -21,14 +22,20 @@ type CommonProps = {
   idempotencyKey: string;
 };
 
-function Feedback({ state }: { state: ActionState }) {
+function Feedback({
+  locale,
+  state,
+}: {
+  locale: "ja" | "en";
+  state: ActionState;
+}) {
   if (!state.message) return null;
   return (
     <p
       className={state.status === "error" ? "form-error" : "form-success"}
       role={state.status === "error" ? "alert" : "status"}
     >
-      {state.message}
+      {feedbackMessage(locale, state.message)}
     </p>
   );
 }
@@ -43,7 +50,7 @@ function FormShell({
   action: (state: ActionState, formData: FormData) => Promise<ActionState>;
   children: React.ReactNode;
   idempotencyKey: string;
-  locale: string;
+  locale: "ja" | "en";
   submitLabel: string;
 }) {
   const [state, formAction, pending] = useActionState(
@@ -55,7 +62,7 @@ function FormShell({
       <input name="locale" type="hidden" value={locale} />
       <input name="idempotencyKey" type="hidden" value={idempotencyKey} />
       {children}
-      <Feedback state={state} />
+      <Feedback locale={locale} state={state} />
       <button className="button" disabled={pending} type="submit">
         {pending ? "…" : submitLabel}
       </button>
@@ -81,7 +88,7 @@ export function UsernameSettings(props: CommonProps) {
       </label>
       {props.state.username_changed_at ? (
         <p className="field-help">
-          Last changed:{" "}
+          {props.labels.lastChanged}:{" "}
           {new Date(props.state.username_changed_at).toLocaleString(
             props.locale,
           )}
@@ -118,7 +125,7 @@ export function IdentitySettings(props: CommonProps) {
       </label>
       {props.state.sf6_user_code_changed_at ? (
         <p className="field-help">
-          User Code last changed:{" "}
+          {props.labels.userCodeLastChanged}:{" "}
           {new Date(props.state.sf6_user_code_changed_at).toLocaleString(
             props.locale,
           )}
@@ -167,7 +174,7 @@ export function AvatarSettings(props: CommonProps) {
             type="file"
           />
         </label>
-        <Feedback state={replaceState} />
+        <Feedback locale={props.locale} state={replaceState} />
         <button className="button" disabled={replacePending} type="submit">
           {replacePending ? "…" : props.labels.save}
         </button>
@@ -179,7 +186,7 @@ export function AvatarSettings(props: CommonProps) {
           type="hidden"
           value={`${props.idempotencyKey}:delete`}
         />
-        <Feedback state={deleteState} />
+        <Feedback locale={props.locale} state={deleteState} />
         <button
           className="button button-danger"
           disabled={deletePending || !props.state.avatar_url}
@@ -203,7 +210,7 @@ type Character = { code: string; name: string; sort_order: number };
 
 export function DetailsSettings(
   props: CommonProps & {
-    countries: { code: string }[];
+    countries: { code: string; label: string }[];
     regions: Region[];
     characters: Character[];
   },
@@ -213,10 +220,6 @@ export function DetailsSettings(
   const regions = useMemo(
     () => props.regions.filter((region) => region.country_code === country),
     [country, props.regions],
-  );
-  const countryNames = useMemo(
-    () => new Intl.DisplayNames([props.locale], { type: "region" }),
-    [props.locale],
   );
   return (
     <FormShell
@@ -232,9 +235,9 @@ export function DetailsSettings(
           onChange={(event) => setCountry(event.target.value)}
           value={country}
         >
-          {props.countries.map(({ code }) => (
+          {props.countries.map(({ code, label }) => (
             <option key={code} value={code}>
-              {countryNames.of(code) ?? code} ({code})
+              {label} ({code})
             </option>
           ))}
         </select>
@@ -319,9 +322,7 @@ export function DetailsSettings(
           </select>
         </label>
       )}
-      <p className="field-help">
-        Changing these values does not recalculate Rating or Placement.
-      </p>
+      <p className="field-help">{props.labels.noRatingRecalculation}</p>
     </FormShell>
   );
 }
@@ -338,9 +339,9 @@ export function DeleteAccountSettings(props: CommonProps) {
       <p>{props.labels.deleteAccountWarning}</p>
       <label className="checkbox-label">
         <input name="confirmed" required type="checkbox" />
-        <span>I understand this action is irreversible.</span>
+        <span>{props.labels.irreversibleConfirmation}</span>
       </label>
-      <Feedback state={state} />
+      <Feedback locale={props.locale} state={state} />
       <button className="button button-danger" disabled={pending} type="submit">
         {pending ? "…" : props.labels.deleteAccountSubmit}
       </button>

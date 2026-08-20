@@ -1,6 +1,7 @@
 import "server-only";
 
 import { z } from "zod";
+import type { Locale } from "@/i18n/config";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
 
@@ -47,6 +48,9 @@ const onboardingStateSchema = z.object({
   username_changed_at: z.string().nullable(),
   sf6_user_code_changed_at: z.string().nullable(),
   deletion_requested_at: z.string().nullable(),
+  deletion_blocking_reasons: z.array(
+    z.enum(["active_match", "unresolved_result", "open_dispute"]),
+  ),
 });
 
 export type OnboardingState = z.infer<typeof onboardingStateSchema>;
@@ -60,7 +64,7 @@ export async function getOnboardingState(authUserId: string) {
   return onboardingStateSchema.parse(data);
 }
 
-export async function getAccountMasters() {
+export async function getAccountMasters(locale: Locale) {
   const supabase = await createClient();
   const [countries, regions, characters] = await Promise.all([
     supabase.from("countries").select("code").order("code"),
@@ -79,8 +83,13 @@ export async function getAccountMasters() {
     throw new Error("Unable to load account masters");
   }
 
+  const countryNames = new Intl.DisplayNames([locale], { type: "region" });
+
   return {
-    countries: countries.data,
+    countries: countries.data.map(({ code }) => ({
+      code,
+      label: countryNames.of(code) ?? code,
+    })),
     regions: regions.data,
     characters: characters.data,
   };

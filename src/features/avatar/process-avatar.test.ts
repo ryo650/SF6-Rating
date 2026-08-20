@@ -43,6 +43,44 @@ describe("processAvatar", () => {
     );
   });
 
+  it("rejects animated images before processing", async () => {
+    const animatedWebp = await sharp(
+      Buffer.from([255, 0, 0, 255, 0, 0, 255, 255]),
+      { raw: { width: 1, height: 2, channels: 4, pageHeight: 1 } },
+    )
+      .webp({ loop: 0 })
+      .toBuffer();
+    await expect(
+      processAvatar(
+        animatedWebp.buffer.slice(
+          animatedWebp.byteOffset,
+          animatedWebp.byteOffset + animatedWebp.byteLength,
+        ) as ArrayBuffer,
+      ),
+    ).rejects.toEqual(expect.objectContaining({ code: "avatar_animated" }));
+  });
+
+  it("rejects decode-bomb dimensions even when compressed bytes are small", async () => {
+    const oversizedPixels = await sharp({
+      create: {
+        width: 4097,
+        height: 4097,
+        channels: 3,
+        background: "#000000",
+      },
+    })
+      .png()
+      .toBuffer();
+    await expect(
+      processAvatar(
+        oversizedPixels.buffer.slice(
+          oversizedPixels.byteOffset,
+          oversizedPixels.byteOffset + oversizedPixels.byteLength,
+        ) as ArrayBuffer,
+      ),
+    ).rejects.toBeInstanceOf(AvatarValidationError);
+  });
+
   it("rejects empty and oversized input before decoding", async () => {
     await expect(processAvatar(new ArrayBuffer(0))).rejects.toBeInstanceOf(
       AvatarValidationError,

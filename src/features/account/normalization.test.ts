@@ -5,7 +5,6 @@ import {
   normalizeSf6PlayerName,
   normalizeSf6UserCode,
   normalizeUsername,
-  safeOauthAvatarUrl,
 } from "./normalization";
 
 describe("account normalization", () => {
@@ -52,13 +51,5 @@ describe("account normalization", () => {
     expect(() => normalizeSf6PlayerName("bad\u200Bname")).toThrow(
       expect.objectContaining({ code: "player_name_characters" }),
     );
-  });
-
-  it("accepts only HTTPS OAuth avatar candidates", () => {
-    expect(safeOauthAvatarUrl("https://cdn.example.test/avatar.png")).toBe(
-      "https://cdn.example.test/avatar.png",
-    );
-    expect(safeOauthAvatarUrl("http://example.test/avatar.png")).toBeNull();
-    expect(safeOauthAvatarUrl("not-a-url")).toBeNull();
   });
 });

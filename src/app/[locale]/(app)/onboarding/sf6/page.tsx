@@ -19,7 +19,7 @@ export default async function Sf6StepPage({
   const user = await requireVerifiedUser(locale);
   const [state, masters] = await Promise.all([
     getOnboardingState(user.id),
-    getAccountMasters(),
+    getAccountMasters(locale),
   ]);
   if (state.current_step < 2) redirect(`/${locale}/onboarding/account`);
   const messages = getMessages(locale);

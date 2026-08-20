@@ -51,15 +51,6 @@ using (
   or private.is_admin()
 );
 
-create policy avatars_owner_insert
-on storage.objects
-for insert
-to authenticated
-with check (
-  bucket_id = 'avatars'
-  and (storage.foldername(name))[1] = private.current_profile_id()::text
-);
-
 create policy avatars_owner_select
 on storage.objects
 for select
@@ -72,29 +63,6 @@ using (
   )
 );
 
-create policy avatars_owner_update
-on storage.objects
-for update
-to authenticated
-using (
-  bucket_id = 'avatars'
-  and owner_id = auth.uid()::text
-)
-with check (
-  bucket_id = 'avatars'
-  and owner_id = auth.uid()::text
-  and (storage.foldername(name))[1] = private.current_profile_id()::text
-);
-
-create policy avatars_owner_delete
-on storage.objects
-for delete
-to authenticated
-using (
-  bucket_id = 'avatars'
-  and owner_id = auth.uid()::text
-);
-
 revoke all on table public.countries from anon, authenticated;
 revoke all on table public.broad_regions from anon, authenticated;
 revoke all on table public.sf6_characters from anon, authenticated;
@@ -105,13 +73,26 @@ grant select on table public.broad_regions to anon, authenticated;
 grant select on table public.sf6_characters to anon, authenticated;
 grant select on table public.avatar_assets to authenticated;
 
+-- Security-invoker projections retain RLS while column grants prevent callers
+-- from bypassing the approved public/active-opponent field sets.
+revoke select on table public.profiles from anon, authenticated;
+grant select (
+  id, username, avatar_url, country_code, current_rating, rating_reached_at,
+  placement_status, placement_completed_count, ranking_eligible,
+  is_public, deleted_at, created_at, updated_at
+) on table public.profiles to anon, authenticated;
+
+revoke select on table public.profile_sf6_identities from authenticated;
+grant select (
+  profile_id, sf6_player_name, sf6_user_code
+) on table public.profile_sf6_identities to authenticated;
+
 grant all privileges on table public.countries to service_role;
 grant all privileges on table public.broad_regions to service_role;
 grant all privileges on table public.sf6_characters to service_role;
 grant all privileges on table public.avatar_assets to service_role;
 
-comment on policy avatars_owner_insert on storage.objects is
-  'Authenticated users may upload only to their immutable Public User ID folder. Content is decoded and re-encoded by the trusted server before upload.';
+comment on policy avatars_owner_select on storage.objects is
+  'Owners may inspect their object metadata. All mutations use the server-only trusted image pipeline; browser writes are denied.';
 comment on policy avatar_assets_owner_or_admin_read on public.avatar_assets is
   'Public profiles expose only avatar_url; internal object metadata remains owner/admin only.';
-

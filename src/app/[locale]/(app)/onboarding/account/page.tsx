@@ -2,6 +2,7 @@ import { randomUUID } from "node:crypto";
 import { notFound } from "next/navigation";
 import { getOnboardingState } from "@/features/account/queries";
 import { requireVerifiedUser } from "@/features/auth/session";
+import { providerProfileCandidate } from "@/features/auth/provider-profile";
 import { AccountStepForm } from "@/features/onboarding/OnboardingForms";
 import { isLocale } from "@/i18n/config";
 import { getMessages } from "@/i18n/messages";
@@ -15,6 +16,7 @@ export default async function AccountStepPage({
   if (!isLocale(locale)) notFound();
   const user = await requireVerifiedUser(locale);
   const state = await getOnboardingState(user.id);
+  const providerCandidate = providerProfileCandidate(user);
   const messages = getMessages(locale);
   return (
     <section className="panel" aria-labelledby="account-step-title">
@@ -24,6 +26,8 @@ export default async function AccountStepPage({
         idempotencyKey={randomUUID()}
         labels={messages}
         locale={locale}
+        providerAvatarAvailable={Boolean(providerCandidate?.avatarUrl)}
+        providerUsernameCandidate={providerCandidate?.username ?? null}
         state={state}
       />
     </section>

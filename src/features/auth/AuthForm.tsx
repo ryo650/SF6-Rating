@@ -3,9 +3,10 @@
 import { useActionState } from "react";
 import type { ActionState } from "@/features/account/action-state";
 import { initialActionState } from "@/features/account/action-state";
+import { feedbackMessage } from "@/features/account/feedback";
 
 type AuthFormProps = {
-  locale: string;
+  locale: "ja" | "en";
   mode: "sign-in" | "sign-up" | "resend" | "forgot" | "update";
   action: (state: ActionState, formData: FormData) => Promise<ActionState>;
   labels: {
@@ -58,7 +59,7 @@ export function AuthForm({ locale, mode, action, labels }: AuthFormProps) {
           className={state.status === "error" ? "form-error" : "form-success"}
           role={state.status === "error" ? "alert" : "status"}
         >
-          {state.message}
+          {feedbackMessage(locale, state.message)}
         </p>
       ) : null}
       <button className="button" disabled={pending} type="submit">

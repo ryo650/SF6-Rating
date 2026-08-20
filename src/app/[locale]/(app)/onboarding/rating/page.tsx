@@ -19,7 +19,7 @@ export default async function RatingStepPage({
   const user = await requireVerifiedUser(locale);
   const [state, masters] = await Promise.all([
     getOnboardingState(user.id),
-    getAccountMasters(),
+    getAccountMasters(locale),
   ]);
   if (state.current_step < 3) redirect(`/${locale}/onboarding`);
   if (state.account_status === "active")
