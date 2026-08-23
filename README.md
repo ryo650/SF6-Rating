@@ -66,8 +66,8 @@ VercelのProject Settingsで次をPreview/Productionそれぞれに設定しま�
 - `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY`: 対象projectのpublishable key
 - `SUPABASE_SERVICE_ROLE_KEY`: server-only trusted actions / Auth deletion用
 - `SF6_USER_CODE_RECLAIM_PEPPER`: server-only User Code reclaim digest用
-- `APP_BASE_URL`: 承認済みAuth callback origin
+- `APP_BASE_URL`: Productionで固定利用するcanonical Auth callback origin
 
-Framework PresetはNext.js、Install Commandは`npm ci`、Build Commandは`npm run build`です。Previewでproduction dataを暗黙に共有しない運用を推奨します。Auth providerをPhase 2で設定する際は、Supabaseのredirect allow listと各OAuth providerにVercel環境別callback URLを登録します。
+Framework PresetはNext.js、Install Commandは`npm ci`、Build Commandは`npm run build`です。PreviewのAuth callbackはVercelが提供する`VERCEL_URL` / `VERCEL_BRANCH_URL`と実request hostが一致する場合だけ、そのrequest originを利用します。これらのSystem Environment Variablesを独自値で上書きしないでください。Previewでproduction dataを暗黙に共有しない運用を推奨します。Auth providerをPhase 2で設定する際は、Supabaseのredirect allow listと各OAuth providerにVercel環境別callback URLを登録します。
 
 秘密情報はVercel/Supabase Dashboardへ直接設定し、GitHub、`.env.example`、ドキュメントには記録しません。

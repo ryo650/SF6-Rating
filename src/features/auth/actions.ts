@@ -1,10 +1,12 @@
 "use server";
 
 import { redirect } from "next/navigation";
+import { headers } from "next/headers";
 import type { Provider } from "@supabase/supabase-js";
 import type { ActionState } from "@/features/account/action-state";
+import { AuthOriginError, buildAuthCallbackUrl } from "@/features/auth/origin";
 import { isLocale } from "@/i18n/config";
-import { getServerEnv } from "@/lib/env/server";
+import { getAuthEnv } from "@/lib/env/auth";
 import { createClient } from "@/lib/supabase/server";
 
 function localeFromForm(formData: FormData) {
@@ -14,6 +16,21 @@ function localeFromForm(formData: FormData) {
 
 function authError(): ActionState {
   return { status: "error", message: "auth_failed" };
+}
+
+async function callbackUrl(next: string) {
+  return buildAuthCallbackUrl(
+    { env: getAuthEnv(), headers: await headers() },
+    next,
+  );
+}
+
+function logOriginFailure(stage: string, error: unknown) {
+  console.error("[auth] origin resolution failed", {
+    stage,
+    errorName: error instanceof Error ? error.constructor.name : "UnknownError",
+    reason: error instanceof AuthOriginError ? error.reason : undefined,
+  });
 }
 
 export async function signUpAction(
@@ -27,13 +44,19 @@ export async function signUpAction(
     return { status: "error", message: "auth_invalid_input" };
   }
 
+  let callback: string;
+  try {
+    callback = await callbackUrl(`/${locale}/onboarding`);
+  } catch (error) {
+    logOriginFailure("email-sign-up", error);
+    return authError();
+  }
+
   const supabase = await createClient();
-  const callback = new URL("/auth/callback", getServerEnv().APP_BASE_URL);
-  callback.searchParams.set("next", `/${locale}/onboarding`);
   const { error } = await supabase.auth.signUp({
     email,
     password,
-    options: { emailRedirectTo: callback.toString() },
+    options: { emailRedirectTo: callback },
   });
 
   if (error) return authError();
@@ -71,13 +94,19 @@ export async function resendVerificationAction(
     return { status: "error", message: "auth_invalid_input" };
   }
 
-  const callback = new URL("/auth/callback", getServerEnv().APP_BASE_URL);
-  callback.searchParams.set("next", `/${locale}/onboarding`);
+  let callback: string;
+  try {
+    callback = await callbackUrl(`/${locale}/onboarding`);
+  } catch (error) {
+    logOriginFailure("email-resend", error);
+    return authError();
+  }
+
   const supabase = await createClient();
   await supabase.auth.resend({
     type: "signup",
     email,
-    options: { emailRedirectTo: callback.toString() },
+    options: { emailRedirectTo: callback },
   });
 
   return { status: "success", message: "verification_sent" };
@@ -93,11 +122,17 @@ export async function requestPasswordResetAction(
     return { status: "error", message: "auth_invalid_input" };
   }
 
-  const callback = new URL("/auth/callback", getServerEnv().APP_BASE_URL);
-  callback.searchParams.set("next", `/${locale}/update-password`);
+  let callback: string;
+  try {
+    callback = await callbackUrl(`/${locale}/update-password`);
+  } catch (error) {
+    logOriginFailure("password-reset", error);
+    return authError();
+  }
+
   const supabase = await createClient();
   await supabase.auth.resetPasswordForEmail(email, {
-    redirectTo: callback.toString(),
+    redirectTo: callback,
   });
 
   return { status: "success", message: "password_reset_sent" };
@@ -124,13 +159,18 @@ export async function startOAuthAction(
   provider: Extract<Provider, "google" | "discord">,
 ): Promise<void> {
   const locale = isLocale(localeCandidate) ? localeCandidate : "ja";
-  const callback = new URL("/auth/callback", getServerEnv().APP_BASE_URL);
-  callback.searchParams.set("next", `/${locale}/onboarding`);
+  let callback: string;
+  try {
+    callback = await callbackUrl(`/${locale}/onboarding`);
+  } catch (error) {
+    logOriginFailure(`oauth-${provider}`, error);
+    redirect(`/${locale}/auth-error`);
+  }
 
   const supabase = await createClient();
   const { data, error } = await supabase.auth.signInWithOAuth({
     provider,
-    options: { redirectTo: callback.toString(), skipBrowserRedirect: true },
+    options: { redirectTo: callback, skipBrowserRedirect: true },
   });
 
   if (error || !data.url) redirect(`/${locale}/auth-error`);

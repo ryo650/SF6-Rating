@@ -58,3 +58,9 @@ Result before second remediation: Critical 0 / Important 4 / Minor 3。
 ## 5. Review Boundary
 
 実Google / Discord account、hosted Email delivery、Vercel Preview、Hosted Supabase設定はreview対象codeの静的contractまで確認した。credential / Dashboard / Preview evidenceはHuman Actionであり、未実施をcode defectとして数えていない。
+
+## 6. Preview Auth Callback Follow-up — 2026-08-23
+
+Hosted provider smokeで、OAuth開始・callback完了の両方が固定`APP_BASE_URL`を使うため、Vercel Previewのaccess hostとPKCE cookie / redirect hostが分かれ得る問題を確認した。Productionはcanonical `APP_BASE_URL`固定を維持し、Previewは実request originが`VERCEL_URL`または`VERCEL_BRANCH_URL`と完全一致する場合だけ採用、Developmentはloopbackだけを採用するresolverへ変更した。Auth callback用env検証をservice-role / reclaim pepper検証から分離し、callback / Email confirmの例外をsafe error redirectまたはno-store 400 fallbackへ変換した。
+
+回帰testはGoogle / Discord OAuth URL、Email verification / resend / password reset URL、Production / Preview / Development origin matrix、forwarded host偽装、PKCE exchange成功 / Auth error / SDK throw / unsafe-origin fallbackを対象とした。`npm run verify`（Vitest 63/63、production buildを含む）、local Auth / Mailpit integration、Playwright desktop 5/5・mobile 4/4（full lifecycle 1 intentional skip）がPASSした。実provider credentialを使うVercel Preview smokeは引き続きHuman Action Pointである。

@@ -1,6 +1,7 @@
 # Phase 2 — Account & Onboarding Human Review Packet
 
 Prepared: 2026-08-20
+Updated: 2026-08-23（Preview Auth callback follow-up）
 Branch: `phase/2-account-onboarding`
 Planning baseline: `38e6715aa37c2a005d9d98ebe8e6392c0a6bf157`
 
@@ -39,7 +40,7 @@ Hosted Supabase、Google Cloud、Discord Developer Portal、Vercel Productionは
 
 | Gate | Status | Evidence |
 | --- | --- | --- |
-| lint / Prettier / typecheck / Vitest / production build | PASS after final fixes | `npm run verify`; 9 files / 37 tests、Next production build pass |
+| lint / Prettier / typecheck / Vitest / production build | PASS after Preview callback fix | `npm run verify`; 14 files / 63 tests、Next production build pass |
 | secret scan | PASS after final fixes | tracked / untracked sourceに該当pattern 0 |
 | clean DB + full pgTAP | PASS | clean 001〜004 install成功。full pgTAP 5 files / 150 tests pass |
 | Phase 1 → Phase 2 upgrade | PASS | Phase 1 reset、Phase 1 pgTAP 68/68、001〜004 forward apply、full post-upgrade pgTAP 150/150、Phase 2 pgTAP 82/82 |
@@ -69,7 +70,7 @@ Humanは全コードではなく、次を優先して確認する。
 ### Security Summary
 
 - Browser direct table / Storage mutationはdeny。service-roleはserver-only moduleに限定。
-- Auth callback originは`APP_BASE_URL`へ固定し、relative safe nextだけを許可。responseはprivate / no-store。
+- Auth callback originはProductionでは`APP_BASE_URL`へ固定し、Previewでは実request hostとVercel system URLの完全一致、Developmentではloopbackだけを許可する。relative safe next、private / no-store responseを維持し、origin / exchange例外はerror redirectまたはfail-closed fallbackへ送る。
 - UsernameはNFKC + pinned full case fold、DB unique。User Codeは10 digits + HMAC claim ledger + DB unique。
 - AvatarはJPEG / PNG / WebPをdecodeし、animation / SVG / oversized / excessive pixelsを拒否、metadata除去・square WebPへ再encode。
 - Avatar replacementはimmutable request pathを使い、transactionが返すexact prior pathだけをcleanupする。
