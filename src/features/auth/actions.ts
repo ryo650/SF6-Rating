@@ -18,9 +18,19 @@ function authError(): ActionState {
   return { status: "error", message: "auth_failed" };
 }
 
-async function callbackUrl(next: string) {
+async function callbackUrl(next: string, debugLabel?: string) {
+  const requestHeaders = await headers();
+  if (debugLabel) {
+    console.info("[auth/origin-debug] Server Action request headers", {
+      stage: debugLabel,
+      host: requestHeaders.get("host"),
+      forwardedHost: requestHeaders.get("x-forwarded-host"),
+      origin: requestHeaders.get("origin"),
+    });
+  }
+
   return buildAuthCallbackUrl(
-    { env: getAuthEnv(), headers: await headers() },
+    { env: getAuthEnv(), headers: requestHeaders },
     next,
   );
 }
@@ -161,7 +171,7 @@ export async function startOAuthAction(
   const locale = isLocale(localeCandidate) ? localeCandidate : "ja";
   let callback: string;
   try {
-    callback = await callbackUrl(`/${locale}/onboarding`);
+    callback = await callbackUrl(`/${locale}/onboarding`, `oauth-${provider}`);
   } catch (error) {
     logOriginFailure(`oauth-${provider}`, error);
     redirect(`/${locale}/auth-error`);
