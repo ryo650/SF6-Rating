@@ -113,7 +113,7 @@ MVPでは独自Account Linking UIを作らない。provider identity競合はSup
 2. SF6 Player Info: Player Name、User Code、Country、Broad Regionを確定する。
 3. Rating Setup: Main Character、SF6 Rank、rank tier、Master MRを確定し、Starting Rating previewを表示する。
 
-最終Completionは1つのatomic / idempotent transactionで、active parameter versionのsnapshot、Starting Rating 1800〜2200 clamp、placement initialization、Profile rating / placement status、account onboarding completion / active status、public eligibilityを確定する。ClientからStarting Rating値を受け取って信用しない。
+最終Completionは1つのatomic / idempotent transactionで、active parameter versionのsnapshot、active Seasonへの初期Rating History、Starting Rating 1800〜2200 clamp、placement initialization、Profile rating / placement status、account onboarding completion / active status、public eligibilityを確定する。ClientからStarting Rating値を受け取って信用しない。active Season不在時は`active_season_required`で全体をrollbackし、Season準備後のretryを許可する。
 
 ### 4.5 Avatar lifecycle
 

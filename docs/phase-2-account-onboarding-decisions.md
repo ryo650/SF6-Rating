@@ -78,6 +78,15 @@ Phase 2のAccount / Profile / Onboardingを実装する前提として、以下�
 - Main Character、SF6 Rank、MRもMVPの通常Public Profileでは公開しない。
 - 公開取得経路はprivate / limited fieldsを列単位で除外し、Client側の非表示だけへ依存しない。
 
+### 1.10 Environment and Season boundary addendum (2026-08-25)
+
+- 現在linkedされているSupabase project `SF6-Rating`（ref: `zeervsxefloyvuvzaakg`）はPreview / Staging専用とする。
+- Productionには別のSupabase projectを新規作成し、Database、Auth、Storage、secret、実ユーザーデータをPreview / Stagingから分離する。現在のPreview projectをProductionへ昇格または転用しない。
+- Localの`Local Test Season`はLocal seed専用とし、Hosted projectへ適用しない。
+- Preview / StagingではHuman approval付きrunbookにより`Preview Validation Season`を管理する。Production SeasonはProduction projectで別途正式に管理し、PreviewのSeasonやRating Historyを移送しない。
+- 環境ごとのproject分離で役割を保証できるため、現時点では`season_type`、`is_test`等の環境識別columnをschemaへ追加しない。
+- active Season不在時のOnboarding Completionは`active_season_required`でatomicに中止し、Season準備後の安全なretryを許可する。
+
 ## 2. Context
 
 Phase 1は後続Featureのためのnullable schema、RLS、public/private projection、transaction/idempotency基盤までを実装した。Phase 2着手前に、正規化、一意性、公開範囲、削除、master data、upload制約、MR入力範囲、onboarding保存境界を確定し、Phase 1の意図的な保留を実装可能な契約へ変える必要があった。

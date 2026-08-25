@@ -14,4 +14,13 @@ describe("feedbackMessage", () => {
       "Could not save. Try again.",
     );
   });
+
+  it("explains the active Season prerequisite in Japanese and English", () => {
+    expect(feedbackMessage("ja", "active_season_required")).toContain(
+      "現在シーズンを準備中",
+    );
+    expect(feedbackMessage("en", "active_season_required")).toContain(
+      "current season is being prepared",
+    );
+  });
 });

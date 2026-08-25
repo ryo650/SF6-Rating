@@ -18,6 +18,7 @@ import {
   verifyRatingPreviewToken,
 } from "./secure-values";
 import { getOnboardingState } from "./queries";
+import { logSanitizedRpcFailure, rpcFailure } from "./rpc-error";
 import {
   getVerifiedUser,
   hasRecentAuthentication,
@@ -54,29 +55,6 @@ function idempotencyKey(formData: FormData) {
   return candidate.length >= 8 && candidate.length <= 200
     ? candidate
     : randomUUID();
-}
-
-function rpcFailure(
-  error: { code?: string; message: string } | null,
-): ActionState {
-  const message = error?.message ?? "save_failed";
-  const known = [
-    "username_reserved",
-    "username_cooldown",
-    "sf6_user_code_reserved",
-    "sf6_user_code_cooldown",
-    "sf6_identity_locked_by_active_match",
-    "rate_limit_exceeded",
-    "email_verification_required",
-    "deletion_blocked",
-    "avatar_cleanup_required",
-  ].find((code) => message.includes(code));
-
-  if (known) return { status: "error", message: known };
-  if (error?.code === "23505") {
-    return { status: "error", message: "value_already_in_use" };
-  }
-  return { status: "error", message: "save_failed" };
 }
 
 function parseRatingSetup(formData: FormData) {
@@ -360,7 +338,10 @@ export async function completeOnboardingAction(
       requested_hash: hashActionPayload(previewContract),
       requested_preview_parameter_version: result.parameter_version,
     });
-    if (completed.error) return rpcFailure(completed.error);
+    if (completed.error) {
+      logSanitizedRpcFailure("phase2_complete_onboarding", completed.error);
+      return rpcFailure(completed.error);
+    }
   } catch (error) {
     if (error instanceof AccountValidationError) {
       return { status: "error", message: error.code };

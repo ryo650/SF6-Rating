@@ -413,6 +413,13 @@ DB状態へ同期し、同一Matchを複数回Placement進行へ加算しない�
 - 再試行できるようにする
 - 一部だけPlacement開始済みの状態を残さない
 
+## Active Season Unavailable During Onboarding
+
+- active Season不在は`active_season_required`として汎用保存失敗と区別する
+- 現在Season準備中であることを日本語・英語で案内する
+- Profile公開、Starting Rating確定、Placement初期化、Rating Historyを部分作成しない
+- active Season準備後は同じ完了要求を安全に再試行できる
+
 ## Rating Finalization Failed
 
 - Match Result、Rating、Rating History、Placement進行、Ranking eligibilityを一括Rollbackする

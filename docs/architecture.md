@@ -710,6 +710,8 @@ Vercel Production Deployment
 - 共有の非本番Supabase Freeプロジェクト
 - Productionとは異なる認証情報・Database
 - Productionの実ユーザーデータを使用しない
+- 現在linkedされている`SF6-Rating` project（ref: `zeervsxefloyvuvzaakg`）はPreview / Staging専用とし、Productionへ昇格または転用しない
+- Preview検証用Seasonは運用runbookで管理し、Local seedの`Local Test Season`をHosted環境へ適用しない
 
 Supabase BranchingはMVPでは採用しない。共有Test Databaseでの競合が問題になった場合、またはMigrationの並行検証が必要になった場合に再評価する。
 
@@ -717,9 +719,10 @@ Supabase BranchingはMVPでは採用しない。共有Test Databaseでの競合�
 
 - `main`ブランチ
 - Vercel Production
-- Production用Supabaseプロジェクト
+- Preview / Stagingとは別に新規作成するProduction用Supabaseプロジェクト
 - 実ユーザー、Match、Rating、Seasonを保存
 - 環境変数と秘密情報をPreview / Testから分離
+- Production SeasonはProduction projectで正式な運用手順により管理し、PreviewのSeasonやRating Historyを移送しない
 
 ---
 

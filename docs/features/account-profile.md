@@ -669,6 +669,7 @@ Active Match、unresolved Result、Disputeがある場合は削除要求をpendi
 
 - PostgreSQLをProfileとオンボーディング状態のSource of Truthとする
 - オンボーディング最終確定、Profile公開、初期仮レート作成、Placement開始、matching eligibilityは部分成功を許可しない
+- active Seasonが存在しない場合は最終確定を`active_season_required`で安全に中止し、現在Season準備中の案内を日本語・英語で表示する
 - 再送・二重クリックで重複Profileや重複Placementを作らない
 - RealtimeやClient状態が失われても再ログイン時にDatabaseから復元できる
 - 外部OAuth障害時も別の認証方式が利用可能である
@@ -721,6 +722,7 @@ Active Match、unresolved Result、Disputeがある場合は削除要求をpendi
 - [ ] 必須情報が欠けている場合は完了できない
 - [ ] 完了時に初期仮レートと10セットのPlacementが作成される
 - [ ] 最終確定の二重送信でProfile公開、初期レート、Placement、matching eligibilityが重複・部分作成されない
+- [ ] active Season不在時は部分作成せず現在Season準備中と案内し、Season準備後に同じ入力で安全に再試行できる
 - [ ] 完了画面で初期仮レートとPlacementの説明を確認できる
 
 ## Username and SF6 Identity

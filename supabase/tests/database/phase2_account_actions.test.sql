@@ -3,7 +3,7 @@ begin;
 create extension if not exists pgtap with schema extensions;
 set local search_path = public, extensions;
 
-select plan(51);
+select plan(61);
 
 insert into auth.users (
   id, instance_id, aud, role, email, encrypted_password, email_confirmed_at,
@@ -16,7 +16,8 @@ values
   ('20000000-0000-4000-8000-000000000004', '00000000-0000-0000-0000-000000000000', 'authenticated', 'authenticated', 'phase2-delete@example.test', '', statement_timestamp(), '{}'::jsonb, '{}'::jsonb, statement_timestamp(), statement_timestamp()),
   ('20000000-0000-4000-8000-000000000005', '00000000-0000-0000-0000-000000000000', 'authenticated', 'authenticated', 'phase2-reclaim@example.test', '', statement_timestamp(), '{}'::jsonb, '{}'::jsonb, statement_timestamp(), statement_timestamp()),
   ('20000000-0000-4000-8000-000000000006', '00000000-0000-0000-0000-000000000000', 'authenticated', 'authenticated', 'phase2-avatar-atomic@example.test', '', statement_timestamp(), '{}'::jsonb, '{}'::jsonb, statement_timestamp(), statement_timestamp()),
-  ('20000000-0000-4000-8000-000000000007', '00000000-0000-0000-0000-000000000000', 'authenticated', 'authenticated', 'phase2-rate-limit@example.test', '', statement_timestamp(), '{}'::jsonb, '{}'::jsonb, statement_timestamp(), statement_timestamp());
+  ('20000000-0000-4000-8000-000000000007', '00000000-0000-0000-0000-000000000000', 'authenticated', 'authenticated', 'phase2-rate-limit@example.test', '', statement_timestamp(), '{}'::jsonb, '{}'::jsonb, statement_timestamp(), statement_timestamp()),
+  ('20000000-0000-4000-8000-000000000008', '00000000-0000-0000-0000-000000000000', 'authenticated', 'authenticated', 'phase2-season-retry@example.test', '', statement_timestamp(), '{}'::jsonb, '{}'::jsonb, statement_timestamp(), statement_timestamp());
 
 select is(
   public.phase2_save_account_step('20000000-0000-4000-8000-000000000001', 'プレイヤーA', 'プレイヤーa', 'a-account', repeat('a', 64)) ->> 'current_step',
@@ -155,6 +156,7 @@ begin
   perform public.phase2_save_account_step('20000000-0000-4000-8000-000000000003', 'PlayerC', 'playerc', 'c-account', repeat('c', 64));
   perform public.phase2_save_account_step('20000000-0000-4000-8000-000000000004', 'DeleteMe', 'deleteme', 'd-account', repeat('d', 64));
   perform public.phase2_save_account_step('20000000-0000-4000-8000-000000000005', 'ReclaimTest', 'reclaimtest', 'e-account', repeat('e', 64));
+  perform public.phase2_save_account_step('20000000-0000-4000-8000-000000000008', 'SeasonRetry', 'seasonretry', 'h-account', repeat('8', 64));
 end;
 $$;
 
@@ -173,6 +175,7 @@ begin
   perform public.phase2_save_sf6_info_step('20000000-0000-4000-8000-000000000002', 'SF6 A', '2222222222', repeat('2', 64), 'US', 'US-ALL', 'b-sf6', repeat('2', 64));
   perform public.phase2_save_sf6_info_step('20000000-0000-4000-8000-000000000003', 'SF6 C', '3333333333', repeat('3', 64), 'JP', 'JP-KANSAI', 'c-sf6', repeat('3', 64));
   perform public.phase2_save_sf6_info_step('20000000-0000-4000-8000-000000000004', 'SF6 D', '4444444444', repeat('4', 64), 'JP', 'JP-TOHOKU', 'd-sf6', repeat('4', 64));
+  perform public.phase2_save_sf6_info_step('20000000-0000-4000-8000-000000000008', 'SF6 H', '8888888888', repeat('8', 64), 'JP', 'JP-KANTO', 'h-sf6', repeat('8', 64));
 end;
 $$;
 
@@ -194,6 +197,109 @@ select is(
 select throws_ok(
   $$select public.phase2_preview_starting_rating('20000000-0000-4000-8000-000000000001', 'ryu', 'master', null::smallint, 0)$$,
   '22023', 'invalid_master_rating', 'MR below the configured range is rejected'
+);
+
+delete from public.seasons where status = 'active';
+
+select throws_ok(
+  $$select public.phase2_complete_onboarding('20000000-0000-4000-8000-000000000008', 'ryu', 'master', null::smallint, 1500, 'h-complete', repeat('8', 64), 'starting-rating-v2')$$,
+  '55000',
+  'active_season_required',
+  'completion reports the explicit prerequisite when no active Season exists'
+);
+select is(
+  (
+    select account_status::text || ':' || onboarding_status::text || ':' || onboarding_current_step::text
+    from public.profile_accounts
+    where auth_user_id = '20000000-0000-4000-8000-000000000008'
+  ),
+  'onboarding:rating_setup_in_progress:3',
+  'a missing Season leaves the onboarding account state unchanged'
+);
+select is(
+  (
+    select count(*)
+    from public.placement_initializations
+    where profile_id = (
+      select profile_id from public.profile_accounts
+      where auth_user_id = '20000000-0000-4000-8000-000000000008'
+    )
+  ),
+  0::bigint,
+  'a missing Season rolls back Placement initialization atomically'
+);
+select is(
+  (
+    select count(*)
+    from public.rating_history
+    where profile_id = (
+      select profile_id from public.profile_accounts
+      where auth_user_id = '20000000-0000-4000-8000-000000000008'
+    )
+  ),
+  0::bigint,
+  'a missing Season creates no Rating History'
+);
+select is(
+  (
+    select count(*)
+    from private.domain_action_receipts
+    where action_scope = 'phase2.onboarding.complete'
+      and actor_identity = '20000000-0000-4000-8000-000000000008'
+  ),
+  0::bigint,
+  'a failed completion leaves no partial idempotency receipt'
+);
+
+insert into public.seasons (id, name, starts_at, ends_at, status)
+values (
+  '00000000-0000-4000-8000-000000000001',
+  'Local Test Season',
+  date_trunc('quarter', statement_timestamp()),
+  date_trunc('quarter', statement_timestamp()) + interval '3 months',
+  'active'
+);
+
+select is(
+  public.phase2_complete_onboarding('20000000-0000-4000-8000-000000000008', 'ryu', 'master', null::smallint, 1500, 'h-complete', repeat('8', 64), 'starting-rating-v2') ->> 'starting_rating',
+  '1850',
+  'the same completion request succeeds after the active Season prerequisite is restored'
+);
+select is(
+  public.phase2_complete_onboarding('20000000-0000-4000-8000-000000000008', 'ryu', 'master', null::smallint, 1500, 'h-complete', repeat('8', 64), 'starting-rating-v2') ->> 'starting_rating',
+  '1850',
+  'completion retry remains idempotent after prerequisite recovery'
+);
+select is(
+  (
+    select count(*) from public.placement_initializations
+    where profile_id = (
+      select profile_id from public.profile_accounts
+      where auth_user_id = '20000000-0000-4000-8000-000000000008'
+    )
+  ),
+  1::bigint,
+  'prerequisite recovery creates exactly one Placement initialization'
+);
+select is(
+  (
+    select count(*) from public.rating_history
+    where profile_id = (
+      select profile_id from public.profile_accounts
+      where auth_user_id = '20000000-0000-4000-8000-000000000008'
+    ) and entry_type = 'initial_placement'
+  ),
+  1::bigint,
+  'prerequisite recovery creates exactly one initial Rating History entry'
+);
+select is(
+  (
+    select count(*) from private.domain_action_receipts
+    where action_scope = 'phase2.onboarding.complete'
+      and actor_identity = '20000000-0000-4000-8000-000000000008'
+  ),
+  1::bigint,
+  'prerequisite recovery creates exactly one completed idempotency receipt'
 );
 
 select is(

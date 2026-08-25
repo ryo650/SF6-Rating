@@ -26,6 +26,8 @@ const feedback = {
       "現在の入力でStarting Ratingを確認してから完了してください。",
     rating_preview_stale:
       "Starting Ratingの設定が更新されました。もう一度確認してください。",
+    active_season_required:
+      "現在シーズンを準備中のため、初期設定を完了できません。しばらくしてから再試行してください。",
     avatar_size: "Avatarは5MB以下にしてください。",
     avatar_format: "AvatarはJPEG、PNG、WebPの静止画像だけ使用できます。",
     avatar_animated: "アニメーション画像は使用できません。",
@@ -86,6 +88,8 @@ const feedback = {
     rating_preview_required:
       "Preview Starting Rating for the current input before completing.",
     rating_preview_stale: "Starting Rating settings changed. Preview it again.",
+    active_season_required:
+      "Onboarding cannot be completed while the current season is being prepared. Please try again later.",
     avatar_size: "Avatar must be 5 MB or smaller.",
     avatar_format: "Use a static JPEG, PNG, or WebP Avatar.",
     avatar_animated: "Animated images are not supported.",
