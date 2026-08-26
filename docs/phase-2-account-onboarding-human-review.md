@@ -1,7 +1,7 @@
 # Phase 2 — Account & Onboarding Human Review Packet
 
 Prepared: 2026-08-20
-Updated: 2026-08-23（Preview Auth callback follow-up）
+Updated: 2026-08-26（Hosted External Integration Verification）
 Branch: `phase/2-account-onboarding`
 Planning baseline: `38e6715aa37c2a005d9d98ebe8e6392c0a6bf157`
 
@@ -11,22 +11,21 @@ Planning baseline: `38e6715aa37c2a005d9d98ebe8e6392c0a6bf157`
 
 Phase 2のAccount lifecycleをlocal implementationとして完成させた。Supabase Auth、Email verification / reset、Google / Discord entry、Auth callback / SSR session、Auth user ↔ immutable Public User ID provisioning、3-step onboarding、Username / SF6 identity / master data、Starting Rating / Placement、Avatar、Profile edit、deletion / anonymization、RLS / rate limit、ja/en、mobile / accessibility testsを含む。
 
-Hosted Supabase、Google Cloud、Discord Developer Portal、Vercel Productionは変更していない。mainへのmerge、PR作成、Phase 3開始も行っていない。
+Preview / Staging専用Supabase projectにはPhase 2 migrationとPreview Validation Seasonを適用し、Google / Discord / Email AuthをStable Branch URLで検証した。Email deliveryはPreview専用Mailtrap Email Sandboxを使用する。Production Supabase、Vercel Production、main merge、Phase 3は変更していない。
 
 ### 🔴 Human Review Required
 
 | Decision / Evidence | Impact | Reversibility | AI Confidence | Required action |
 | --- | --- | --- | --- | --- |
-| Google / Discord provider有効化と実callback | High。必須Auth flowのhosted evidence | High。Dashboard設定を戻せる | High（code contract）/ Low（未設定環境） | credentialsを秘密管理しSupabase provider / redirectを設定、各1 accountでsmoke |
-| Hosted Email / reset delivery | High。verification必須contract | Medium | High（local Mailpit）/ Low（hosted delivery） | SMTP / template / expiry / redirectを確認し、実inboxでverificationとresetをsmoke |
-| Vercel Preview runtime | High。cookie / callback / env境界 | High。Preview削除可能 | Medium | isolated Supabase environmentとsecretを設定し、ja/en desktop/mobile smoke |
+| Production Auth / SMTP bootstrap | High。Productionでの認証・到達性境界 | Medium | High（Preview contract）/ Low（Production未構築） | 別Supabase projectと別SMTP credentialを用意し、provider、redirect、sender-domain、SPF / DKIM / DMARCを正式設定 |
+| Production runtime smoke | High。cookie / callback / env境界 | High。Preview / deployment単位で切戻し可能 | High（Stable Branch evidence）/ Low（Production未構築） | Production環境構築後にGoogle / Discord / Email、ja/en、desktop/mobileを再smoke |
 
 ### Blockers
 
 - Product / Decision blocker: 0
 - Code implementation blocker: 0
 - Completion evidence blocker: 0
-- External integration blocker: Google / Discord / hosted Email / Vercel PreviewのHuman Action
+- External integration blocker: 0（Preview / Staging hosted smoke完了）。Production rolloutはPhase 2 PR completionとは別のHuman Action
 
 ### Security Critical Remaining
 
@@ -49,11 +48,11 @@ Hosted Supabase、Google Cloud、Discord Developer Portal、Vercel Productionは
 | Local Auth / Mailpit | PASS | verification、password reset/update、provisioning、session、onboarding、Auth deletion |
 | Browser E2E / axe | PASS WITH INTENTIONAL SKIP | desktop 5/5、mobile 4/4、mobile full lifecycle 1 intentional skip。full lifecycleはdesktopでpass |
 | generated DB types | PASS | 2-run hash stable: `8fa7848e611e94be358777d83ae039fe6f77b03e1c81709ee1c92bb6a8138b3e` |
-| Google / Discord / hosted Email / Vercel Preview | NOT YET RUN — HUMAN ACTION REQUIRED | credentials / provider / Preview設定を本branchから変更していない |
+| Google / Discord / hosted Email / Vercel Preview | PASS | Stable BranchでGoogle / Discord callback・session、Mailtrap SandboxによるEmail verification / resend / recovery / password update / sign-in、invalid-link errorを確認 |
 
 ### AI Recommendation
 
-Final Verificationは**PASS**。Critical / Importantは0、既知Minorは2、全local Completion Gateがpassした。AI recommendationは本branchをHuman Reviewへ進め、PRを作成可能とすること。外部provider / hosted Email / Vercel Previewは引き続きHuman ActionとしてPR review時に追跡する。
+Final VerificationとPreview / Staging Hosted External Integration Verificationは**PASS**。Critical / Importantは0、既知Minorは2。PR #2は外部integration evidenceを含めてreview可能である。main merge、Production project bootstrap、Production provider / SMTP / Vercel設定は別途Human approvalを必要とする。
 
 ## Layer 2 — Review Summary
 
@@ -90,12 +89,11 @@ High-riskはAuth callback/session、RLS / service-role、SF6 identity uniqueness
 
 ### Remaining Human Action Points
 
-1. Google OAuth consent / Client ID / Secretを準備し、対象Supabase environmentでproviderを有効化。
-2. Discord application / OAuth credentialsを準備し、providerを有効化。
-3. Supabase Site URL、redirect allowlist、Google / Discord callback URLを環境別に設定。
-4. Email verification / password / Auth rate limit、SMTP sender、templates、expiryを確認。
-5. Vercel Previewへ公開envとserver-only secretを設定。値は文書やlogへ出さない。
-6. 実Google / Discord / Email accountとVercel Previewでsmoke、ja/en mobile UX review。
+1. Production用の別Supabase projectを作成し、migration、Season、Site URL、redirect allowlistを正式bootstrapする。
+2. Production専用Google / Discord credentialsとSMTP credentialsを秘密管理し、Preview / Staging credentialを再利用しない。
+3. Production sender domainのSPF / DKIM / DMARC、実mailbox到達性、template、expiry、rate limit / abuse monitoringを検証する。
+4. Production Vercel環境を構築後、Google / Discord / Email、ja/en、desktop/mobileを再smokeする。
+5. Preview smokeで作成したtest users / test rating historyはPreview / Staging内に限定し、必要なcleanupは承認済みrunbookで行う。
 
 ## Layer 3 — Evidence
 
@@ -113,6 +111,7 @@ High-riskはAuth callback/session、RLS / service-role、SF6 identity uniqueness
 - `20260817000200_phase2_account_domain_actions.sql`: trusted RPC、normalization guards、idempotency、locks、completion、Profile / Avatar / deletion lifecycle。
 - `20260817000300_phase2_account_rls_and_storage.sql`: default-deny RLS、projection grants、browser Storage mutation deny。
 - `20260817000400_phase2_account_review_hardening.sql`: old Phase 2 migration適用後にもclaim ledger、PII scrub、RPC overload cleanup、locks、Avatar swap、RLS補正を適用するforward correction。
+- `20260825000100_phase2_active_season_prerequisite.sql`: Active Season不在を`active_season_required`（SQLSTATE `55000`）へ変換し、汎用save errorと区別するforward migration。Preview / Stagingへ適用後、Season 0件failureとPreview Validation Season作成後のrecovery / idempotencyを確認した。
 
 ### Implementation References
 
@@ -138,11 +137,25 @@ Primary technical contracts were checked against Supabase SSR / Auth / RLS / Sto
 - Rate-limit初期値、stable error codes、client-side draft / idempotency key mechanics。
 - Provider imageは継続同期せず、ownerが保存した内部assetとして扱う。
 
+### Hosted External Integration Evidence — 2026-08-26
+
+- Hosted DB prerequisite: migration `20260825000100`適用、Active Season 0件時のlocalized failure、Preview Validation Season bootstrap、同一userのcompletion recovery、Starting Rating / Placement / Rating History、retry idempotencyがPASSした。
+- Google OAuth: PASS。Stable BranchからSupabase callbackを経てonboardingへ戻り、reload後もsessionを維持した。
+- Discord OAuth: PASS。最初の試行は認可画面で約5分待機したためSupabase OAuth state期限切れとなったが、即時再試行ではcallback、session、onboarding、reload persistenceがすべて成功した。設定・code defectとしては再現しなかった。
+- Email signup / verification: PASS。Preview専用Mailtrap Email Sandboxで新規確認メールを受信し、確認リンクからStable Branchのonboardingへ遷移した。`mailer_autoconfirm=false`、Email provider有効、送信rate limit 30 emails/hをread-only evidenceで確認した。
+- Resend verification: PASS。未確認accountへの再送で新しい確認メールを受信した。
+- Password recovery: PASS。recovery email、Stable Branchのupdate-password、password update、新password sign-in、reload後sessionを確認した。
+- Invalid / expired link: PASS。再送前の古い確認リンクはlocalized `/ja/auth-error`へ安全に着地し、Vercel requestは200、Warning / Error / Fatalは0だった。URL fragmentはserverへ送信されず、Vercel logにemail、OTP、token、secretは記録されなかった。
+- Redirect / session: 全成功flowはStable Branch host内に留まり、Production URLへの遷移やPKCE cookie host分離は観測されなかった。
+- Hosted observation: Discord初回callback後に一度だけretryable fetch warningを観測したが、即時retryと以後のflowでは再現せず、Auth / session結果に影響しなかった。未解決Critical / Importantには分類しない。
+- Boundary: Mailtrap SandboxはPreview / Staging専用であり、実mailbox deliverabilityやProduction sender-domain認証を証明しない。DB / migration、Google / Discord provider、redirect allowlist、Vercel environment、Auth templateはこのEmail smoke中に変更していない。
+
 ## Finish Gate
 
 - Phase 2 implementation code: complete
-- Hosted migration / provider / Production mutation: none
+- Preview / Staging hosted migration / bootstrap / Auth integration: verified
+- Production mutation: none
 - Verification: PASS
-- PR creation: ready（未作成）
+- PR #2: external integration evidence complete（未merge）
 - main merge: not approved
 - Phase 3: not started

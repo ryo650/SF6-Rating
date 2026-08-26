@@ -52,15 +52,30 @@ Result before second remediation: Critical 0 / Important 4 / Minor 3。
 - Targeted closure reviewでは、OAuth revisitの自動上書き、triggerのservice-role boundary、不正なMatch enum test、OAuth internal-asset constraintを追加検出した。すべて修正し、最終narrow reviewでclosedを確認した。
 - Minor remaining: pre-RPC Avatar staging orphanとfield-level error associationの2件。current Avatarを消すcleanupは行わず安全側に倒しており、Product / authorization stateを変えないためPhase 2 gateを単独ではblockしない。
 - Verification: **PASS**。clean 001〜004 install、Phase 1 pre-upgrade 68 tests、Phase 1→Phase 2 001〜004 apply、full post-upgrade pgTAP 150 tests、Phase 2 82 tests、両concurrency、Auth/Mailpit、Playwright、DB lint、types stability、`npm run verify`、secret scanがpassした。Phase 1互換fixtureは公開投影のtest intentを維持したまま、Phase 2では内部`avatar_assets`参照を持つ有効なOAuth Avatar状態を作るよう補正した。
-- Human Action Points: Google / Discord provider credentials、hosted Email、redirect allowlist、Vercel Previewは未実施。いずれも外部environmentのHuman Actionであり、local Completion Gate blockerではない。
+- Human Action Points: Preview / StagingのGoogle / Discord / hosted Email / redirect / Stable Branch smokeは2026-08-26に完了した。残るHuman Actionは、別Production Supabase project、Production専用provider / SMTP credentials、sender-domain認証、Production redirect / Vercel設定とproduction smokeである。
 - PR readiness: **Ready**。Critical / Important 0、Minor 2、全local Completion GateがPASSした。
 
 ## 5. Review Boundary
 
-実Google / Discord account、hosted Email delivery、Vercel Preview、Hosted Supabase設定はreview対象codeの静的contractまで確認した。credential / Dashboard / Preview evidenceはHuman Actionであり、未実施をcode defectとして数えていない。
+Local review時点では実Google / Discord account、hosted Email delivery、Vercel Preview、Hosted Supabase設定を静的contractまで確認した。その後のPreview / Staging hosted smokeはSection 7に追記した。Production環境はreview boundary外であり、未構築をcode defectとして数えない。
 
 ## 6. Preview Auth Callback Follow-up — 2026-08-23
 
 Hosted provider smokeで、OAuth開始・callback完了の両方が固定`APP_BASE_URL`を使うため、Vercel Previewのaccess hostとPKCE cookie / redirect hostが分かれ得る問題を確認した。Productionはcanonical `APP_BASE_URL`固定を維持し、Previewは実request originが`VERCEL_URL`または`VERCEL_BRANCH_URL`と完全一致する場合だけ採用、Developmentはloopbackだけを採用するresolverへ変更した。Auth callback用env検証をservice-role / reclaim pepper検証から分離し、callback / Email confirmの例外をsafe error redirectまたはno-store 400 fallbackへ変換した。
 
-回帰testはGoogle / Discord OAuth URL、Email verification / resend / password reset URL、Production / Preview / Development origin matrix、forwarded host偽装、PKCE exchange成功 / Auth error / SDK throw / unsafe-origin fallbackを対象とした。`npm run verify`（Vitest 63/63、production buildを含む）、local Auth / Mailpit integration、Playwright desktop 5/5・mobile 4/4（full lifecycle 1 intentional skip）がPASSした。実provider credentialを使うVercel Preview smokeは引き続きHuman Action Pointである。
+回帰testはGoogle / Discord OAuth URL、Email verification / resend / password reset URL、Production / Preview / Development origin matrix、forwarded host偽装、PKCE exchange成功 / Auth error / SDK throw / unsafe-origin fallbackを対象とした。`npm run verify`（Vitest 63/63、production buildを含む）、local Auth / Mailpit integration、Playwright desktop 5/5・mobile 4/4（full lifecycle 1 intentional skip）がPASSした。この時点で未実施だった実provider credentialを使うVercel Preview smokeは、Section 7のfollow-upで完了した。
+
+## 7. Hosted External Integration Follow-up — 2026-08-26
+
+Preview / Staging専用Supabase projectとVercel Stable Branch URLで、Google OAuth、Discord OAuth、Email + Passwordをfresh hosted evidenceとして確認した。
+
+- Hosted DB prerequisite: forward migration `20260825000100`の適用後、Active Season 0件で`active_season_required`とatomic no-op、Preview Validation Season bootstrap後にcompletion、Starting Rating / Placement / Rating History、retry idempotencyを確認した。
+- Google / Discord: provider認可、Supabase callback、Stable Branchへの復帰、session作成、onboarding redirect、reload persistenceがPASSした。Discordの最初の試行は認可画面で長時間待機したためOAuth state期限切れとなったが、即時再試行で成功し、設定・code defectとして再現しなかった。
+- Email verification: Preview専用Mailtrap Email Sandboxでsignup、verification delivery、verification callback、sessionを確認した。Hosted Auth settingsは`mailer_autoconfirm=false`であり、verification必須contractを維持していた。
+- Resend / recovery: resend、forgot password、recovery delivery、update-password callback、password update、新password sign-in、reload persistenceがPASSした。
+- Invalid link: 再送で無効化された古い確認リンクはlocalized `/ja/auth-error`へ遷移した。Vercelでは同pathが200、Warning / Error / Fatal 0で、fragment内のAuth error、email、OTP、token、secretはserver logへ送信されなかった。
+- Redirect: 成功flowはStable Branch hostを維持し、Production URLへの遷移やPKCE / session cookie host分離は観測されなかった。
+- Logs: Email flowでは想定外Auth / Vercel error 0。Discord callback直後に一度だけretryable fetch warningがあったが、即時retry後は再現せず結果への影響もなかったためinformational observationとする。
+- Environment boundary: Mailtrap Sandboxとtest usersはPreview / Staging専用。Productionは別Supabase projectと別SMTP credentialを使う。Production sender-domain、SPF / DKIM / DMARC、実mailbox deliverabilityは未検証のHuman Actionである。
+
+Hosted follow-up後もclassificationはCritical 0 / Important 0 / Minor 2。既知Minorはpre-RPC Avatar staging orphanとfield-level ARIA error associationであり、今回のAuth smokeによる新規blocking findingはない。PR #2はexternal integration evidence上もreview readyであり、main mergeは未承認のまま維持する。
