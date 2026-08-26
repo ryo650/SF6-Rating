@@ -39,7 +39,7 @@ Preview / Staging専用Supabase projectにはPhase 2 migrationとPreview Validat
 
 | Gate | Status | Evidence |
 | --- | --- | --- |
-| lint / Prettier / typecheck / Vitest / production build | PASS after Preview callback fix | `npm run verify`; 14 files / 63 tests、Next production build pass |
+| lint / Prettier / typecheck / Vitest / production build | PASS on final PR head | `npm run verify`; 16 files / 70 tests、Next production build pass |
 | secret scan | PASS after final fixes | tracked / untracked sourceに該当pattern 0 |
 | clean DB + full pgTAP | PASS | clean 001〜004 install成功。full pgTAP 5 files / 150 tests pass |
 | Phase 1 → Phase 2 upgrade | PASS | Phase 1 reset、Phase 1 pgTAP 68/68、001〜004 forward apply、full post-upgrade pgTAP 150/150、Phase 2 pgTAP 82/82 |
