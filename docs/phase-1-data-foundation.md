@@ -1,6 +1,6 @@
 # Phase 1 — Data Foundation Contract
 
-Status: Implemented; awaiting Human Review  
+Status: Complete
 Scope: Phase 1 only  
 Source of Truth: `docs/implementation-plan.md` and `docs/tasks.md`, interpreted through reviewed Feature Specs and `docs/architecture.md`
 
@@ -128,15 +128,14 @@ The generated `Database` type is passed to browser, server, and proxy Supabase c
 
 ## Deferred decisions / open questions
 
-These are intentionally not guessed in Phase 1:
+The Phase 2 decisions previously deferred by this contract were resolved in `docs/phase-2-account-onboarding-decisions.md`: Username and SF6 User Code normalization, immutable Public User ID, country/broad-region master baseline, Avatar limits, Auth source of truth, account deletion, Master MR validation, onboarding persistence, and public/private identity fields. Phase 2 must implement them through forward migrations and trusted actions without rewriting the Phase 1 migrations.
 
-- Username and SF6 User Code normalization, lengths, characters, and reuse policy (Phase 2 blocker).
-- Country/broad-region master values and nearby-country grouping (Phase 2/3).
-- Avatar limits, Email policy, account deletion timing, and anonymous representation details (Phase 2).
-- Master MR validation range (configuration value remains unset until validation).
+The following later-phase decisions remain deferred:
+
+- Nearby-country grouping and waiting-time region behavior (Phase 3).
 - Production Season start/end/name and rollover operations (Phase 7).
 - Candidate weights, heartbeat, rate limits, event retention, and history page sizes.
 - Admin bootstrap, queue SLA, fourth-strike duration, and existing-Match handling when a restriction is applied (Phase 8).
 - Optional forfeit termination score and Unrated public statistics.
 
-Until the Phase 2 blockers are resolved or explicitly converted into reviewed MVP configuration, Phase 2 must not start.
+There is no remaining Phase 2 Product Decision blocker in this Phase 1 contract.

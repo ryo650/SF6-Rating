@@ -1,8 +1,9 @@
 # Public Profile Feature Spec
 
-Status: Draft  
-Product: SF6-Rating  
+Status: Reviewed — Phase 2 Privacy Contract Formalized
+Product: SF6-Rating
 Feature: Public Profile
+Related Decision: `docs/phase-2-account-onboarding-decisions.md`
 
 ---
 
@@ -62,6 +63,7 @@ Public Profileはオンボーディング完了後に公開され、MVPではユ
 - オンボーディング完了後、Public Profileを常時公開する
 - MVPではProfile privacy toggleや非公開アカウントを提供しない
 - Guestを含む閲覧者が、許可された公開情報を閲覧できる
+- Profile URLと永続参照は変更可能なUsernameではなくimmutable Public User IDを使用する
 - Account削除後はPublic Profile自体を非公開化または削除する
 
 ## FR-02 基本表示
@@ -82,6 +84,7 @@ Placement中もCurrent Ratingは表示するが、Ranking Positionは表示し�
 
 Public ProfileおよびPublic APIから以下を返さない。
 
+- SF6 Player Name
 - SF6 User Code
 - Matchmaking用の詳細地域
 - Email
@@ -96,6 +99,7 @@ SF6 Player NameやSF6 User Codeを対戦相手へ限定公開する責務はMatc
 ## FR-04 キャラクター情報
 
 - MVPのPublic ProfileではMain Characterを含むキャラクター情報を表示しない
+- MVPのPublic ProfileではSF6 RankとMRを表示しない
 - Character stats、Character matchup stats、使用率、使用予定Characterも表示しない
 - Find OpponentやRankingなどからPublic Profileを開いても、Rated Match成立前のキャラクター非公開ルールを迂回できない
 - Accountにキャラクター情報が存在しても、Public Profile用の取得経路から返さない
@@ -433,9 +437,11 @@ Public Profile用の権限はRLS、Server-side authorization、公開専用Query
 以下はPublic Profile Response Modelへ含めない。
 
 - SF6 User Code
+- SF6 Player Name
 - Detailed Region
 - Email / OAuth Data
 - Character Data
+- SF6 Rank / MR
 - Restriction / Warning History
 - Dispute / Incident Data
 - Admin / Investigation Data
@@ -481,7 +487,7 @@ Ranking Position、Current Season、過去Season Recordの最終定義はRanking
 
 - Public API、公開Query / View、RLSレベルでPrivate / Limitedデータを返さない
 - フロントエンドで非表示にすることだけをSecurity境界にしない
-- SF6 User Code、詳細地域、Email / OAuth、Character、Moderation / AdminデータをPublic Responseへ含めない
+- SF6 Player Name、SF6 User Code、詳細地域、Email / OAuth、Character、SF6 Rank / MR、Moderation / AdminデータをPublic Responseへ含めない
 - Rating、Stats、Placement進捗、Ranking、Season Recordのクライアント直接更新を拒否する
 - 不変IDを内部関連付けに使用し、Username変更やAccount削除で他ユーザーの履歴へ誤接続しない
 
@@ -523,10 +529,12 @@ Ranking Position、Current Season、過去Season Recordの最終定義はRanking
 - [ ] MVPでProfile privacy toggleが存在しない
 - [ ] Guestが許可された公開情報を閲覧できる
 - [ ] SF6 User CodeがPublic ProfileおよびPublic APIから取得できない
+- [ ] SF6 Player NameがPublic ProfileおよびPublic APIから取得できない
 - [ ] 詳細地域がPublic ProfileおよびPublic APIから取得できない
 - [ ] Email / OAuth情報がPublic ProfileおよびPublic APIから取得できない
 - [ ] Restriction、Dispute、Admin情報がPublic ProfileおよびPublic APIから取得できない
 - [ ] Main Characterを含むCharacter情報がPublic ProfileおよびPublic APIから取得できない
+- [ ] SF6 RankとMRがPublic ProfileおよびPublic APIから取得できない
 - [ ] Find OpponentからProfileを開いてもRated Match前のCharacter非公開ルールを迂回できない
 - [ ] Private / LimitedデータがRLSまたはServer-side公開境界で除外される
 
@@ -559,6 +567,7 @@ Ranking Position、Current Season、過去Season Recordの最終定義はRanking
 
 ## Identity, Deletion, and Seasons
 
+- [ ] Profile URLと永続参照がimmutable Public User IDを使用する
 - [ ] Username変更後も不変IDでMatch HistoryとSeason Recordが維持される
 - [ ] Account削除後にPublic Profileへアクセスできない
 - [ ] Account削除後の過去Matchが匿名化されて保持される
@@ -609,6 +618,14 @@ Post-MVPのTournament実績やCharacter Practice実績は将来の拡張余地�
 - Season別Match Historyへの絞り込みをMVPに含めるか
 
 Ranking / Seasons Feature SpecをSource of Truthとする。Public ProfileはOverview / Match History / Seasonsの構成と、確定済み公開データだけを表示する境界を維持する。Season別Match History絞り込みはMVP必須外とする。
+
+## Resolved — Phase 2 Identity and Privacy Baseline
+
+**[Resolved by Phase 2 Decision]**
+
+- 基本公開項目はUsername、Avatar、Country、Current Rating、Placement状態とする
+- Email、Broad Region、SF6 Player Name、SF6 User Code、Main Character、SF6 Rank、MRを公開しない
+- Profile URLと履歴参照にはimmutable Public User IDを使う
 
 ## OQ-01 Initial Match History Page Size
 

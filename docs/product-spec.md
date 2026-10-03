@@ -166,6 +166,15 @@ SF6-Ratingのアカウントを作成し、SF6プレイヤー情報を登録す�
 
 SF6ユーザーコードの厳格な本人確認はMVPでは必須にしない。
 
+Phase 2では次を確定要件とする。
+
+- Usernameは3〜20文字のUnicode文字・数字・`_`・`-`を許可し、Unicode / case-insensitive normalization後の値を一意にする
+- 永続参照とProfile URLには変更可能なUsernameではなくimmutable Public User IDを使う
+- SF6 Player Nameは重複可能なゲーム内検索名、10桁数字へ正規化したSF6 User Codeは一意なcanonical identityとして別管理する
+- CountryはISO country code、Broad Regionは非公開の管理master dataとする
+- Avatar uploadはOwnerだけが行え、JPEG / PNG / WebP、最大5 MBの静止画に限定する
+- Supabase Authを認証Source of Truthとし、Google / Discord / verified Email + Passwordを提供する。MVPで独自Account Linking UIは作らない
+
 ---
 
 ## Feature 2 — Matchmaking
@@ -433,7 +442,9 @@ Player pairは順序非依存のcanonical pair keyで識別する。Rated / Unra
 
 - ユーザー名
 - アイコン
+- 国
 - 現在レート
+- Placement状態
 - 勝敗
 - 勝率
 - 3-0 / 3-1 / 3-2等のセット結果
@@ -441,6 +452,8 @@ Player pairは順序非依存のcanonical pair keyで識別する。Rated / Unra
 - シーズン成績
 
 プロフィール上でのキャラクター関連情報は将来的に利用できる余地を残す。
+
+Email、Broad Region、SF6 Player Name、SF6 User Code、Main Character、SF6 Rank、MRはMVPの通常Public Profileでは公開しない。
 
 ただしレート戦のマッチ成立前にはキャラクター情報を表示しない。
 
@@ -651,6 +664,14 @@ Product boundary:
 
 27. Current Season中のCompleted Match無効化はRatingと競技Statsを同じDomain Actionで補正し、Placement countは巻き戻さない。Completed SeasonのFinal Snapshotは変更しない。
 
+28. Account onboardingは3 stepとし、各stepを「次へ」でServerへ確定保存する。最終Completionはatomicかつidempotentに行う。
+
+29. Active Match中はSF6 Player NameとSF6 User Codeを変更できない。両項目はPublic Profileでは非公開とし、Active Match Roomの対戦相手、Owner、Adminにだけ必要な範囲で表示する。
+
+30. Active Match、unresolved Result、DisputeがあるAccount deletionはpendingにし、解消後に個人情報を匿名化してAuth accountを削除する。Match / Rating Historyは匿名参照で保持する。
+
+31. 削除済みSF6 User Codeは自動再利用せず、必要なreclaim / releaseをAdmin操作に限定する。
+
 ---
 
 # 9. Edge Cases
@@ -772,6 +793,7 @@ MVPを機能的に完成と判断する最低条件:
 - MVP Incident Typesは`no_show | abandonment | result_nonresponse | match_completion_failure`とする。
 - Strike段階は1=Warning、2=1時間停止、3=24時間停止、4+=Admin Reviewで最大7日とする。無効化されたIncidentは将来の集計から除外し、既発行RestrictionはAdminの明示的Revoke / Adjustでのみ変更する。
 - Rating丸め、Clamp、Master初期Rating境界、同順位、Soft Reset丸め、Public Profileのキャラクター非公開、Dispute evidence、Progressive Restriction、Compensating Correctionは関連Feature Specsで解決済みである。
+- Phase 2のUsername / Public User ID、SF6 identity、Region master、Avatar、Authentication、Account deletion、Master MR range、Onboarding保存境界、Public Profile privacyは`docs/phase-2-account-onboarding-decisions.md`と関連Feature Specsで解決済みである。
 
 # 12. Open Questions
 

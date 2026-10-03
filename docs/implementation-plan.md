@@ -1,6 +1,6 @@
 # SF6-Rating — MVP Implementation Plan
 
-Status: Ready for Phase 0
+Status: Phase 2 Implementation Complete — Verification Gate Pending
 Approach: Foundation + Vertical Slice
 Internal MVP Checkpoint: Phase 5 complete
 
@@ -31,13 +31,15 @@ Rated FT3の各gameのRound Timeは60 secondsとする。仕様変更が入っ�
 
 ## 2. Repository Investigation
 
-2026-08-15時点の最新`main`（`49665c3`）を調査した。
+2026-08-15時点の最新`main`（`f5198e6`）とPhase 1成果物を調査した。
 
-- リポジトリは仕様文書のみのGreenfieldで、アプリケーションコード、package manifest、DB migration、CI、testsは存在しない。
+- Phase 0のNext.js / TypeScript / Supabase基盤と、Phase 1のmigration、RLS、generated types、database tests、transaction / idempotency基盤が存在する。
 - ArchitectureはNext.js + TypeScript + App Router、Supabase、Vercel、日本語/英語を指定している。
 - PostgreSQLを永続状態のSource of Truthとし、重要な状態遷移はtrusted Server / Database処理でAtomicかつIdempotentに行う。
 - Supabase Realtimeは確定済み変更の通知にのみ使い、再接続時はDBから復元する。
 - Supabase ProjectはTokyo regionで作成済み。Data API ON、Automatically expose new tables OFF、Automatic RLS ON。GitHub repositoryとの接続も完了済み。
+- Phase 1の`profiles.id`はimmutable Public User IDとして使用でき、Profile / SF6 identity / private details / placement initialization / deletion metadataのnullable skeletonがある。Phase 2では既存migrationを編集せずforward migrationとtrusted actionsで契約を完成させる。
+- Phase 2のProduct Decisionは`docs/phase-2-account-onboarding-decisions.md`でAcceptedとなり、Feature SpecsとArchitectureへ反映済みである。
 - 実装直前には各Phaseで再度Repository Investigationを行い、既存パターン、schema、tests、利用可能なcomponentsを確認して詳細なファイル構成を確定する。
 
 ## 3. Implementation Approach
@@ -146,26 +148,40 @@ schema reviewとpermission testsがpassし、Account/Profileのblocking Open Que
 
 ### Phase 2 — Account & Onboarding
 
+Detailed plan: `docs/phase-2-account-onboarding-implementation-plan.md`
+Detailed tasks: `docs/phase-2-account-onboarding-tasks.md`
+
 **Goal**
 Google、Discord、Email/Password認証と3-step onboardingを通じて、matching可能なProfileとPlacement開始状態を作る。
 
 **Dependencies**
-Phases 0–1、`account-profile.md`、`placement.md`、Auth provider設定。
+Phases 0–1、`account-profile.md`、`placement.md`、`phase-2-account-onboarding-decisions.md`、統合検証前のAuth provider環境設定。
 
 **Data / API changes**
-profile、SF6 identity、region、initial rating inputs、placement progress、avatar metadata、change/deletion metadataを実装する。trusted onboarding completion、unique/normalization validation、resume/edit/delete domain actionsを用意する。
+profile、SF6 identity、country / broad-region masters、initial rating inputs、placement progress、avatar metadata、change/deletion/reclaim metadataをforward migrationで実装する。Username NFKC + case-fold normalization、10桁SF6 User Code normalization、30日cooldown、Active Match identity gate、MR 1〜5000 validation、step save、trusted onboarding completion、resume/edit/delete domain actionsを用意する。
 
 **UI changes**
-auth、email verification/reset、3-step onboarding、resume、profile edit、avatar、validation/loading/error/mobile statesをja/enで実装する。
+Google / Discord / verified Email + Password、email verification/reset、3-step onboarding、「次へ」保存、resume、profile edit、avatar、validation/loading/error/mobile statesをja/enで実装する。独自Account Linking UIは作らない。
 
 **Security changes**
-owner/admin/public境界、private fields、Storage policy、OAuth callback、rate limit、active match中の重要profile変更gateを検証する。
+owner/admin/public/active-opponent境界、private fields、Storage policy、OAuth callback、rate limit、Active Match中のPlayer Name / User Code変更gate、deletion pending gate、User Code reclaim権限を検証する。
+
+**Dependency-ordered slices**
+
+1. DB / Auth Foundation
+2. Authentication Flow
+3. Onboarding Step 1: Account
+4. Onboarding Step 2: SF6 Player Info
+5. Onboarding Step 3 + Placement Initialization
+6. Avatar and Profile Editing
+7. Account Deletion and Anonymization
+8. Integration, Security, and UX Verification
 
 **Risks / mitigation**
-username/SF6 code normalization、avatar制約、account deletionは実装直前に具体値を決定し、設定とdecision recordへ残す。OAuth secretは環境管理する。
+Unicode confusableはNFKC + case foldingとAdmin moderationで扱う。Avatar decodeは5 MB byte上限に加えpixel/decode上限とserver re-encodeで保護する。Account deletionはstate machine、idempotency receipt、retry、private reclaim ledgerで部分失敗とUser Code即時再利用を防ぐ。OAuth secretは環境管理する。
 
 **Verification / Completion Gate**
-全必須auth方式、途中再開、unique conflict、入力境界、owner/public visibility、placement初期化、mobile UX、deletion safetyをFeature acceptance criteriaと統合testで確認し、Standard Phase Gateを完了する。
+全必須auth方式、途中再開、step単位保存、atomic completion、Unicode / User Code unique conflict、入力境界、owner/public/active-opponent visibility、Active Match identity gate、region master、avatar形式/容量/加工、MR 1〜5000、placement初期化、mobile UX、pending deletion / anonymization / reclaim safetyをFeature acceptance criteriaと統合testで確認する。Auth、RLS、Account deletion、SF6 Identity、onboarding completion transactionをHigh-riskとして、`Implementation → Self Verification → Independent Review → AI-fixable Critical/Important fixes → Re-verification`を完了する。
 
 **Proceed to Phase 3 when**
 onboarding完了ユーザーが一貫したmatching eligibilityを持ち、認証/公開範囲のHigh issueがない。
@@ -366,9 +382,8 @@ Critical/High issueが0件、Known Issuesが受容済み、monitoring/operations
 
 ## 7. Open Questions and Decision Timing
 
-Phase 0を開始できないOpen Questionはない。以下は該当PhaseのRepository Investigation完了までに決め、設定値・decision log・spec更新のいずれかへ記録する。
+Phase 2を開始できないOpen Questionはない。以下は該当PhaseのRepository Investigation完了までに決め、設定値・decision log・spec更新のいずれかへ記録する。
 
-- Phase 1–2: username/SF6 code normalization、region master、avatar limits、email policy、account deletion policy、Master MR validation range。
 - Phase 3: nearby-country grouping、candidate weights、heartbeat interval、profile-change-during-waiting、rate-limit values。
 - Phase 4–5: host assignment、event retention、forfeit termination score、unrated statistics、5/10分UX仮説の計測方法。
 - Phase 6: history page size、username searchをMVPへ含めるか。
@@ -376,3 +391,5 @@ Phase 0を開始できないOpen Questionはない。以下は該当PhaseのRepo
 - Phase 8–9: admin queue SLA/notification、restriction operational ranges、success metric targets。
 
 設定可能なnon-blocking assumptionは初期値と検証方法を明示して進められる。Feature contract、security、data integrity、不可逆な運用を変える未決事項は該当Phaseのblocking questionとして解決する。
+
+Phase 2の具体値、Closed Questions、AI-owned assumptions、Future / Out of Scopeは`docs/phase-2-account-onboarding-decisions.md`に記録した。詳細な実装順、Human Action Points、High-risk verificationは`docs/phase-2-account-onboarding-implementation-plan.md`に記録した。Google / Discord credentials、redirect URL、Email delivery等は統合検証前のenvironment prerequisiteであり、未解決Product Decisionではない。

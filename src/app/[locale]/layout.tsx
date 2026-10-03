@@ -24,7 +24,7 @@ export default async function LocaleLayout({
     <html lang={locale}>
       <body>
         <a className="skip-link" href="#main-content">
-          Skip to content
+          {messages.skipToContent}
         </a>
         <header className="site-header">
           <div className="header-inner">
@@ -37,6 +37,9 @@ export default async function LocaleLayout({
               hrefLang={otherLocale}
             >
               {messages.switchLocale}
+            </Link>
+            <Link className="locale-link" href={`/${locale}/sign-in`}>
+              {messages.signInTitle}
             </Link>
           </div>
         </header>
