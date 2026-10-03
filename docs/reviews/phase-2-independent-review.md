@@ -1,6 +1,7 @@
 # Phase 2 — Independent Review
 
 Review date: 2026-08-20
+Current gate (2026-10-03): P1 remediation is implemented in an isolated local worktree; independent closure review and Production verification remain pending. Earlier completion results below are historical.
 Branch: `phase/2-account-onboarding`
 Scope: Spec compliance、correctness、security、data integrity、Auth / authorization、privacy、account deletion、regression、UX / accessibility
 
@@ -79,3 +80,23 @@ Preview / Staging専用Supabase projectとVercel Stable Branch URLで、Google O
 - Environment boundary: Mailtrap Sandboxとtest usersはPreview / Staging専用。Productionは別Supabase projectと別SMTP credentialを使う。Production sender-domain、SPF / DKIM / DMARC、実mailbox deliverabilityは未検証のHuman Actionである。
 
 Hosted follow-up後もclassificationはCritical 0 / Important 0 / Minor 2。既知Minorはpre-RPC Avatar staging orphanとfield-level ARIA error associationであり、今回のAuth smokeによる新規blocking findingはない。PR #2はexternal integration evidence上もreview readyであり、main mergeは未承認のまま維持する。
+
+## 8. Profile Details / Deletion Follow-up — 2026-10-03
+
+PR #2の[P1 review thread](https://github.com/ryo650/SF6-Rating/pull/2#discussion_r3859841688)は未解決・non-outdatedである。`phase2_update_profile_details`がactive状態を確認してからprivate detailsのrow lockを待つ間に匿名化がcommitすると、その後の更新でCountry / Region / Character / Rank / MRを復元し得る。隔離したPostgreSQL 17.6で旧定義が実際にこの競合を起こし、PII非復元のregression assertionにFAILした。本番での悪用・データ露出を確認したものではない。
+
+Forward migration `20261003000100_phase2_profile_details_deletion_lock.sql`は、既存RPCのactor解決直後、rate-limit / receipt / active状態検査より前に共通account lockを取得する。既適用migrationを変更せず、署名、security definer、search_path、execute grants、validation、idempotencyの既存契約を維持する。
+
+`scripts/test-phase2-profile-deletion-concurrency.mjs`は、Dockerのlocal Unix socketと対象projectのcontainer-local PostgreSQL socketを検証してからsynthetic fixturesを作成する。Deletion先行ではaccount / private-details locksを保持し、更新RPCのDB待機を確認した後に匿名化をcommitする。Update先行では更新と同じ要求のretryを保持し、削除RPCの待機を確認してからcommitする。両順序で匿名化後PII null、Rating / Placement snapshotとHistory保持、single initializationを検査し、retryは1 receiptのみを残す。固定sleepによる競合順序の推測は行わない。既存`db:test`へ追加した。
+
+Local evidence（未commit worktree、baseline `c64c7c5c427b51e6d0254b9029bc4cbe7560fc1d`）:
+
+- 旧定義: PII非復元assertionでFAIL。修正後: 両競合順序PASS。
+- 既存Phase 2からのforward applyとRPC署名 / 属性 / ACL不変: PASS。
+- pgTAP: upgrade後とapplication schemas再構築後、各5 files / 160 tests PASS。
+- Phase 1 / Phase 2既存concurrency、DB lint、`npm run verify`: PASS（Vitest 70/70、production buildを含む）。
+- Clean検証は、専用DBの`public` / `private`を再構築して同じschema owner / ACLを復元し、全migrationとlocal seedを適用したもの。Supabase platformのAuth / Storage / extensions prerequisitesは保持しており、通常のfull CLI clean-reset後の全stack検証とは区別する。
+
+Local runtime上の制約: Supabase CLI startと旧版resetがport公開を`0.0.0.0`へ設定する挙動を検出し、その都度今回のtest projectだけを停止した。以後は明示`127.0.0.1:55322`の専用DBとcontainer-local socketのみを使用し、CLI start/resetは再使用しない。独立reviewへのhandoffに操作時刻、port、seed-onlyだった範囲と接続観測の限界を記録する。Auth / Mailpitとdesktop/mobile browser全stack検証は未実施。本番 / Preview DB、既存local DB、Provider / Secret設定、domain、Season、PR merge、公開範囲への変更はない。
+
+Disposition: **Local remediation ready for independent review; P1 closure / Phase 2 Complete / Release approvalは未成立**。新候補のreviewed HEAD、本番forward migrationの別承認、P4-A/B/C再検証、Production Google Client ID修正と最終Human Gateは引き続き必要である。
